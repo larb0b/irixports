@@ -10,6 +10,7 @@ fi
 : "${installopts:=}"
 : "${ldlibpath:=/usr/lib32:/opt/local/gcc-4.7.4/lib32}"
 : "${workdir:=$port-$version}"
+: "${configscript:=configure}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH=$ldlibpath
 PATH=/opt/local/bin:$PATH
@@ -40,7 +41,7 @@ runpatch() {
 	done
 }
 runconfigure() {
-	runcommandwd ./configure --prefix="$HOME"/.local "$@"
+	runcommandwd ./"$configscript" --prefix="$HOME"/.local "$@"
 }
 runmake() {
 	runcommandwd gmake $makeopts "$@"
