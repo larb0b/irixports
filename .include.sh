@@ -35,7 +35,9 @@ runfetch() {
 	esac
 }
 runpatch() {
-	runcommandwd patch "$2" < "$1"
+	for f in patches/*; do
+		runcommandwd patch "$1" < "$f"
+	done
 }
 runconfigure() {
 	runcommandwd ./configure --prefix="$HOME"/.local "$@"
