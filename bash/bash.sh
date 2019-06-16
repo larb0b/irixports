@@ -1,4 +1,4 @@
-#!/bin/ksh ../.port.sh
+#!/opt/local/bin/mksh ../.port.sh
 port=bash
 version=4.4
 useconfigure=true

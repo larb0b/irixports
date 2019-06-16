@@ -1,6 +1,5 @@
-#!/bin/ksh
+#!/opt/local/bin/mksh
 set -e
-
 prefix="$HOME/.local"
 
 . "$@"
@@ -16,6 +15,7 @@ shift
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$PATH
+filename="$(basename $url)"
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
@@ -36,7 +36,6 @@ func_defined() {
 }
 func_defined fetch || fetch() {
 	runcommand curl -O "$url"
-	filename="$(basename $url)"
 	if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$sha1sum" ]; then
 		>&2 echo "Error: SHA-1 sum of $filename differs from expected sum."
 		exit 1
@@ -69,6 +68,9 @@ func_defined install || install() {
 		installopts="PREFIX=$prefix $installopts"
 	fi
 	runcommandwd gmake $installopts install
+}
+func_defined clean || clean() {
+	rm -rf "$workdir" "$filename" 
 }
 addtodb() {
 	echo "$port $version" >> "$prefix"/packages.db
@@ -103,6 +105,10 @@ do_install() {
 	echo "Adding $port to database of installed packages!"
 	addtodb
 }
+do_clean() {
+	echo "Cleaning $port!"
+	clean
+}
 
 if [ -z "$1" ]; then
 	do_fetch
@@ -111,11 +117,11 @@ if [ -z "$1" ]; then
 	do_install
 else
 	case "$1" in
-		fetch|configure|build|install)
+		fetch|configure|build|install|clean)
 			do_$1
 			;;
 		*)
-			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install."
+			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean."
 			exit 1
 			;;
 	esac

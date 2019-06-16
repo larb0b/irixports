@@ -6,7 +6,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 echo "Fetching /opt/local."
 perl .fetch.pl mirror.rqsall.com /misc/optlocal.tar /optlocal.tar
-if [ "$(openssl sha1 /optlocal.tar | cut -d' ' -f2)" != "d31301e0b08d92f9b0a046805d4b66aede7ba5d9" ]; then
+if [ "$(openssl sha1 /optlocal.tar | cut -d' ' -f2)" != "3044955474c54946e759bb04f72a60bb0ea9f4a9" ]; then
 	>&2 echo "Error: optlocal.tardist checksum incorrect. Try running this script again."
 	exit 1
 fi

@@ -1,4 +1,4 @@
-#!/bin/ksh ../.port.sh
+#!/opt/local/bin/mksh ../.port.sh
 port=openssl
 version=1.0.2s
 useconfigure=true

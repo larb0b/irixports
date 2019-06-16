@@ -1,4 +1,4 @@
-#!/bin/ksh ../.port.sh
+#!/opt/local/bin/mksh ../.port.sh
 port=vim
 version=8.1
 workdir=vim81/src

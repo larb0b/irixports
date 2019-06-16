@@ -1,4 +1,4 @@
-#!/bin/ksh ../.port.sh
+#!/opt/local/bin/mksh ../.port.sh
 port=curl
 version=7.65.1
 useconfigure=true
