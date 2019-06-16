@@ -12,6 +12,8 @@ fi
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
 : "${configopts:=}"
+: "${useconfigure:=false}"
+prefix="$HOME/.local"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH=$ldlibpath
 PATH=/opt/local/bin:$PATH
@@ -50,20 +52,28 @@ func_defined fetch || fetch() {
 	fi
 }
 func_defined configure || configure() {
-	runcommandwd ./"$configscript" --prefix="$HOME"/.local $configopts
+	runcommandwd ./"$configscript" --prefix="$prefix" $configopts
 }
 func_defined build || build() {
-	runcommandwd gmake $makeopts "$@"
+	if [ "$useconfigure" = "false" ]; then
+		makeopts="PREFIX=$prefix $makeopts"
+	fi
+	runcommandwd gmake $makeopts
 }
 func_defined install || install() {
-	runcommandwd gmake $installopts install "$@"
+	if [ "$useconfigure" = "false" ]; then
+		installopts="PREFIX=$prefix $installopts"
+	fi
+	runcommandwd gmake $installopts install
 }
 
 if [ -z "$1" ]; then
 	echo "Fetching!"
 	fetch
-	echo "Configuring!"
-	configure
+	if [ "$useconfigure" = "true" ]; then
+		echo "Configuring!"
+		configure
+	fi
 	echo "Building!"
 	build
 	echo "Installing!"
@@ -72,8 +82,12 @@ elif [ "$1" = "fetch" ]; then
 	echo "Fetching!"
 	fetch
 elif [ "$1" = "configure" ]; then
-	echo "Configuring!"
-	configure
+	if [ "$useconfigure" = "true" ]; then
+		echo "Configuring!"
+		configure
+	else
+		echo "Error: This port does not use a configure script."
+	fi	
 elif [ "$1" = "build" ]; then
 	echo "Building!"
 	build
