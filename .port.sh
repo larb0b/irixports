@@ -1,20 +1,20 @@
 #!/bin/ksh
 set -e
 
-makeopts="-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)"
-installopts=
-ldlibpath="/usr/lib32:/opt/local/gcc-4.7.4/lib32"
-workdir="$port-$version"
-configscript=configure
-configopts=
-useconfigure=false
+. "$@"
+shift
+
+: "${makeopts:=-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)}"
+: "${installopts:=}"
+: "${ldlibpath:=/usr/lib32:/opt/local/gcc-4.7.4/lib32}"
+: "${workdir:=$port-$version}"
+: "${configscript:=configure}"
+: "${configopts:=}"
+: "${useconfigure:=false}"
 prefix="$HOME/.local"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$PATH
-
-. "$@"
-shift
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
@@ -72,37 +72,46 @@ func_defined install || install() {
 addtodb() {
 	echo "$port $version" >> "$prefix"/packages.db
 }
+installdepends() {
+	for depend in $depends; do
+		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
+			(cd "../$depend" && ./"$depend".sh)
+		fi
+	done
+}
 
 if [ -z "$1" ]; then
-	echo "Fetching!"
+	installdepends
+	echo "Fetching $port!"
 	fetch
 	if [ "$useconfigure" = "true" ]; then
-		echo "Configuring!"
+		echo "Configuring $port!"
 		configure
 	fi
-	echo "Building!"
+	echo "Building $port!"
 	build
-	echo "Installing!"
+	echo "Installing $port!"
 	install
-	echo "Adding to database of installed packages!"
+	echo "Adding $port to database of installed packages!"
 	addtodb
 elif [ "$1" = "fetch" ]; then
-	echo "Fetching!"
+	installdepends
+	echo "Fetching $port!"
 	fetch
 elif [ "$1" = "configure" ]; then
 	if [ "$useconfigure" = "true" ]; then
-		echo "Configuring!"
+		echo "Configuring $port!"
 		configure
 	else
 		echo "Error: This port does not use a configure script."
 	fi
 elif [ "$1" = "build" ]; then
-	echo "Building!"
+	echo "Building $port!"
 	build
 elif [ "$1" = "install" ]; then
-	echo "Installing!"
+	echo "Installing $port!"
 	install
-	echo "Adding to database of installed packages!"
+	echo "Adding $port to database of installed packages!"
 	addtodb
 else
 	>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install."
