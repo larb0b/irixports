@@ -6,18 +6,16 @@ if [ "$(id -u)" != "0" ]; then
 fi
 echo "Fetching /opt/local."
 perl .fetch.pl mirror.rqsall.com /misc/optlocal.tar /optlocal.tar
-if [ "$(sum -r /optlocal.tar | cut -d' ' -f1)" != "27685" ]; then
+if [ "$(openssl sha1 /optlocal.tar | cut -d' ' -f2)" != "d31301e0b08d92f9b0a046805d4b66aede7ba5d9" ]; then
 	>&2 echo "Error: optlocal.tardist checksum incorrect. Try running this script again."
 	exit 1
 fi
 echo "Extracting /opt/local."
 (cd / && tar xf optlocal.tar)
-echo "Fetching latest cacert.pem."
-/opt/local/bin/curl -o /opt/local/etc/cacert.pem https://curl.haxx.se/ca/cacert.pem
 echo "Fetching GCC 4.7.4."
 mkdir -p /tmp/gcc
 /opt/local/bin/curl -o /tmp/gcc/gcc.tardist http://ports.sgi.sh/lang/gcc47/gcc47-4.7.4-01-irix-6.5-mips-201902070817.tardist
-if [ "$(sum -r /tmp/gcc/gcc.tardist | cut -d' ' -f1)" != "60699" ]; then
+if [ "$(openssl sha1 /tmp/gcc/gcc.tardist | cut -d' ' -f2)" != "d7aeebce0a794d9dbdb4ce78d4f55010dab07923" ]; then
 	>&2 echo "Error: gcc.tardist checksum incorrect. Try running this script again."
 	exit 1
 fi
