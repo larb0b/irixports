@@ -1,22 +1,25 @@
 #!/bin/ksh
 set -e
 
-if [ -z "$port" ]; then
-        echo "Must set port to the port directory."
-        exit 1
-fi
-
-: "${makeopts:=-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)}"
-: "${installopts:=}"
-: "${ldlibpath:=/usr/lib32:/opt/local/gcc-4.7.4/lib32}"
-: "${workdir:=$port-$version}"
-: "${configscript:=configure}"
-: "${configopts:=}"
-: "${useconfigure:=false}"
+makeopts="-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)"
+installopts=
+ldlibpath="/usr/lib32:/opt/local/gcc-4.7.4/lib32"
+workdir="$port-$version"
+configscript=configure
+configopts=
+useconfigure=false
 prefix="$HOME/.local"
 CC=/opt/local/gcc-4.7.4/bin/gcc
-LD_LIBRARY_PATH=$ldlibpath
+LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$PATH
+
+. "$@"
+shift
+
+if [ -z "$port" ]; then
+	echo "Must set port to the port directory."
+	exit 1
+fi
 
 runcommand() {
 	echo "> $@"
@@ -42,7 +45,7 @@ func_defined fetch || fetch() {
 			runcommand tar xf "$filename"
 			;;
 		*)
-			echo "Note: no case for file $filename." 
+			echo "Note: no case for file $filename."
 			;;
 	esac
 	if [ -d patches ]; then
@@ -66,6 +69,9 @@ func_defined install || install() {
 	fi
 	runcommandwd gmake $installopts install
 }
+addtodb() {
+	echo "$port $version" >> "$prefix"/packages.db
+}
 
 if [ -z "$1" ]; then
 	echo "Fetching!"
@@ -78,6 +84,8 @@ if [ -z "$1" ]; then
 	build
 	echo "Installing!"
 	install
+	echo "Adding to database of installed packages!"
+	addtodb
 elif [ "$1" = "fetch" ]; then
 	echo "Fetching!"
 	fetch
@@ -87,13 +95,15 @@ elif [ "$1" = "configure" ]; then
 		configure
 	else
 		echo "Error: This port does not use a configure script."
-	fi	
+	fi
 elif [ "$1" = "build" ]; then
 	echo "Building!"
 	build
 elif [ "$1" = "install" ]; then
 	echo "Installing!"
 	install
+	echo "Adding to database of installed packages!"
+	addtodb
 else
 	>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install."
 	exit 1
