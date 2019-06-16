@@ -1,6 +1,8 @@
 #!/bin/ksh
 set -e
 
+prefix="$HOME/.local"
+
 . "$@"
 shift
 
@@ -11,7 +13,6 @@ shift
 : "${configscript:=configure}"
 : "${configopts:=}"
 : "${useconfigure:=false}"
-prefix="$HOME/.local"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$PATH
@@ -79,41 +80,43 @@ installdepends() {
 		fi
 	done
 }
-
-if [ -z "$1" ]; then
+do_fetch() {
 	installdepends
 	echo "Fetching $port!"
 	fetch
-	if [ "$useconfigure" = "true" ]; then
-		echo "Configuring $port!"
-		configure
-	fi
-	echo "Building $port!"
-	build
-	echo "Installing $port!"
-	install
-	echo "Adding $port to database of installed packages!"
-	addtodb
-elif [ "$1" = "fetch" ]; then
-	installdepends
-	echo "Fetching $port!"
-	fetch
-elif [ "$1" = "configure" ]; then
+}
+do_configure() {
 	if [ "$useconfigure" = "true" ]; then
 		echo "Configuring $port!"
 		configure
 	else
-		>&2 echo "Error: This port does not use a configure script."
+		echo "This port does not use a configure script. Skipping configure step."
 	fi
-elif [ "$1" = "build" ]; then
+}
+do_build() {
 	echo "Building $port!"
 	build
-elif [ "$1" = "install" ]; then
+}
+do_install() {
 	echo "Installing $port!"
 	install
 	echo "Adding $port to database of installed packages!"
 	addtodb
+}
+
+if [ -z "$1" ]; then
+	do_fetch
+	do_configure
+	do_build
+	do_install
 else
-	>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install."
-	exit 1
+	case "$1" in
+		fetch|configure|build|install)
+			do_$1
+			;;
+		*)
+			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install."
+			exit 1
+			;;
+	esac
 fi
