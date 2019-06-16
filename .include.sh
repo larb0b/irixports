@@ -26,6 +26,10 @@ runcommandwd() {
 runfetch() {
 	runcommand curl -O "$@"
 	filename="$(basename $1)"
+	if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$sha1sum" ]; then
+		echo "Error: SHA-1 sum of $filename differs from expected sum."
+		exit 1
+	fi
 	case "$filename" in
 		*.tar*|.tbz*|.txz|.tgz)
 			runcommand tar xf "$filename"
