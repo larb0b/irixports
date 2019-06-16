@@ -11,6 +11,7 @@ fi
 : "${ldlibpath:=/usr/lib32:/opt/local/gcc-4.7.4/lib32}"
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
+: "${configopts:=}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH=$ldlibpath
 PATH=/opt/local/bin:$PATH
@@ -23,9 +24,13 @@ runcommandwd() {
 	echo "> $@ (workdir)"
 	(cd "$workdir" && "$@")
 }
-runfetch() {
-	runcommand curl -O "$@"
-	filename="$(basename $1)"
+# Checks if a function is defined. In this case, if the function is not defined in the port's script, then we will use our defaults. This way, ports don't need to include fetch, configure, build, and install functions every time, but they can override our defaults if needed.
+func_defined() {
+	PATH= command -V "$1"  > /dev/null 2>&1
+}
+func_defined fetch || fetch() {
+	runcommand curl -O "$url"
+	filename="$(basename $url)"
 	if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$sha1sum" ]; then
 		echo "Error: SHA-1 sum of $filename differs from expected sum."
 		exit 1
@@ -38,19 +43,19 @@ runfetch() {
 			echo "Note: no case for file $filename." 
 			;;
 	esac
+	if [ -d patches ]; then
+		for f in patches/*; do
+			runcommandwd patch < "$f"
+		done
+	fi
 }
-runpatch() {
-	for f in patches/*; do
-		runcommandwd patch "$1" < "$f"
-	done
+func_defined configure || configure() {
+	runcommandwd ./"$configscript" --prefix="$HOME"/.local $configopts
 }
-runconfigure() {
-	runcommandwd ./"$configscript" --prefix="$HOME"/.local "$@"
-}
-runmake() {
+func_defined build || build() {
 	runcommandwd gmake $makeopts "$@"
 }
-runmakeinstall() {
+func_defined install || install() {
 	runcommandwd gmake $installopts install "$@"
 }
 
