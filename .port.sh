@@ -14,7 +14,7 @@ shift
 : "${useconfigure:=false}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
-PATH=/opt/local/bin:$PATH
+PATH=/opt/local/bin:$prefix/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
 filename="$(basename $url)"
 
 if [ -z "$port" ]; then
