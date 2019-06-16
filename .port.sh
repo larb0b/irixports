@@ -70,7 +70,13 @@ func_defined install || install() {
 	runcommandwd gmake $installopts install
 }
 func_defined clean || clean() {
-	rm -rf "$workdir" "$filename" 
+	rm -rf "$workdir" 
+}
+func_defined clean_dist || clean_dist() {
+	rm -f "$filename"
+}
+func_defined clean_all || clean_all() {
+	rm -rf "$workdir" "$filename"
 }
 addtodb() {
 	echo "$port $version" >> "$prefix"/packages.db
@@ -106,8 +112,16 @@ do_install() {
 	addtodb
 }
 do_clean() {
-	echo "Cleaning $port!"
+	echo "Cleaning workdir in $port!"
 	clean
+}
+do_clean_dist() {
+	echo "Cleaning dist in $port!"
+	clean_dist
+}
+do_clean_all() {
+	echo "Cleaning all in $port!"
+	clean_all
 }
 
 if [ -z "$1" ]; then
@@ -117,11 +131,11 @@ if [ -z "$1" ]; then
 	do_install
 else
 	case "$1" in
-		fetch|configure|build|install|clean)
+		fetch|configure|build|install|clean|clean_dist|clean_all)
 			do_$1
 			;;
 		*)
-			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean."
+			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all."
 			exit 1
 			;;
 	esac
