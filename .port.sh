@@ -37,7 +37,7 @@ func_defined fetch || fetch() {
 	runcommand curl -O "$url"
 	filename="$(basename $url)"
 	if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$sha1sum" ]; then
-		echo "Error: SHA-1 sum of $filename differs from expected sum."
+		>&2 echo "Error: SHA-1 sum of $filename differs from expected sum."
 		exit 1
 	fi
 	case "$filename" in
@@ -103,7 +103,7 @@ elif [ "$1" = "configure" ]; then
 		echo "Configuring $port!"
 		configure
 	else
-		echo "Error: This port does not use a configure script."
+		>&2 echo "Error: This port does not use a configure script."
 	fi
 elif [ "$1" = "build" ]; then
 	echo "Building $port!"
