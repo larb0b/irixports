@@ -22,11 +22,11 @@ if [ -z "$port" ]; then
 	exit 1
 fi
 
-runcommand() {
+run() {
 	echo "> $@"
 	("$@")
 }
-runcommandwd() {
+runwd() {
 	echo "> $@ (workdir)"
 	(cd "$workdir" && "$@")
 }
@@ -40,17 +40,17 @@ func_defined fetch || fetch() {
 	for f in $files; do
 		IFS=$OLDIFS
 		read url filename hash <<< $(echo "$f")
-		runcommand curl "$url" -o "$filename"
+		run curl "$url" -o "$filename"
 		if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$hash" ]; then
 			>&2 echo "Error: SHA-1 hash of $filename differs from expected hash."
 			exit 1
 		fi
 		case "$filename" in
 			*.tar*|.tbz*|*.txz|*.tgz)
-				runcommand tar xf "$filename"
+				run tar xf "$filename"
 				;;
 			*.gz)
-				runcommand gzcat "$filename" > "$filename.out"
+				run gzcat "$filename" > "$filename.out"
 				;;
 			*)
 				echo "Note: no case for file $filename."
@@ -59,24 +59,24 @@ func_defined fetch || fetch() {
 	done
 	if [ -d patches ]; then
 		for f in patches/*; do
-			runcommandwd patch -p"$patchlevel" < "$f"
+			runwd patch -p"$patchlevel" < "$f"
 		done
 	fi
 }
 func_defined configure || configure() {
-	runcommandwd ./"$configscript" --prefix="$prefix" $configopts
+	runwd ./"$configscript" --prefix="$prefix" $configopts
 }
 func_defined build || build() {
 	if [ "$useconfigure" = "false" ]; then
 		makeopts="PREFIX=$prefix $makeopts"
 	fi
-	runcommandwd gmake $makeopts
+	runwd gmake $makeopts
 }
 func_defined install || install() {
 	if [ "$useconfigure" = "false" ]; then
 		installopts="PREFIX=$prefix $installopts"
 	fi
-	runcommandwd gmake $installopts install
+	runwd gmake $installopts install
 }
 func_defined clean || clean() {
 	rm -rf "$workdir" *.out
