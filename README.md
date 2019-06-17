@@ -10,7 +10,10 @@ If you've never used irixports on the system, run bootstrap.sh as root to bootst
 
 Run the script inside of the port's folder! 
 
-## Running one step at a time
+## Arguments
 
-Run the port script with an argument! 
-Supported arguments: `fetch`, `configure`, `build`, `install`.
+You can run the steps of port scripts one at a time:  
+`fetch`, `configure`, `build`, `install`.
+
+The port scripts have cleaning functionality:  
+`clean`, `clean_dist`, `clean_all`.
