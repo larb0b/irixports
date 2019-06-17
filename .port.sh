@@ -12,6 +12,7 @@ shift
 : "${configscript:=configure}"
 : "${configopts:=}"
 : "${useconfigure:=false}"
+: "${patchlevel:=1}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$prefix/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
@@ -58,7 +59,7 @@ func_defined fetch || fetch() {
 	done
 	if [ -d patches ]; then
 		for f in patches/*; do
-			runcommandwd patch < "$f"
+			runcommandwd patch -p"$patchlevel" < "$f"
 		done
 	fi
 }
