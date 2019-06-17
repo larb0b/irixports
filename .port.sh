@@ -1,5 +1,5 @@
 #!/opt/local/bin/mksh
-set -e
+set -eu
 prefix="$HOME/.local"
 
 . "$@"
@@ -12,6 +12,7 @@ shift
 : "${configscript:=configure}"
 : "${configopts:=}"
 : "${useconfigure:=false}"
+: "${depends:=}"
 : "${patchlevel:=1}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
@@ -146,7 +147,7 @@ do_clean_all() {
 	clean_all
 }
 
-if [ -z "$1" ]; then
+if [ -z "${1:-}" ]; then
 	do_fetch
 	do_configure
 	do_build
