@@ -41,7 +41,7 @@ func_defined fetch || fetch() {
 	for f in $files; do
 		IFS=$OLDIFS
 		read url filename hash <<< $(echo "$f")
-		run curl "$url" -o "$filename"
+		run curl ${curlopts:-} "$url" -o "$filename"
 		if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$hash" ]; then
 			>&2 echo "Error: SHA-1 hash of $filename differs from expected hash."
 			exit 1
