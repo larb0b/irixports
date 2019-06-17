@@ -14,9 +14,11 @@ shift
 : "${useconfigure:=false}"
 : "${depends:=}"
 : "${patchlevel:=1}"
-CC=/opt/local/gcc-4.7.4/bin/gcc
-LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
-PATH=$prefix/bin:/opt/local/gcc-4.7.4/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
+: "${gccversion:=4.7.4}"
+CC=/opt/local/gcc-$gccversion/bin/gcc
+CXX=/opt/local/gcc-$gccversion/bin/g++
+LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-$gccversion/lib32${ldlibpath:+:$ldlibpath}"
+PATH=$prefix/bin:/opt/local/gcc-$gccversion/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
