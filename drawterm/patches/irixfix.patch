@@ -1,0 +1,43 @@
+# HG changeset patch
+# User Larkin Nickle <me@larbob.org>
+# Date 1560744049 14400
+#      Mon Jun 17 00:00:49 2019 -0400
+# Node ID a4492b0dc79e2fc58881bd26c68bec26bb0b723e
+# Parent  5c953ddd29fac5a8ec07be9c1e2a32043415242c
+Fix IRIX support
+
+diff -r 5c953ddd29fa -r a4492b0dc79e Make.irix
+--- a/Make.irix	Sat Mar 09 20:51:48 2019 +0100
++++ b/Make.irix	Mon Jun 17 00:00:49 2019 -0400
+@@ -8,7 +8,7 @@
+ X11=/usr/X11R6
+ #CC=gcc
+ #CFLAGS=-Wall -Wno-missing-braces -ggdb -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -I$(X11)/include -D_THREAD_SAFE $(PTHREAD) -O2
+-CC=cc
++CC=gcc
+ CFLAGS=-g -O2 -I$(ROOT) -I$(ROOT)/include -I$(ROOT)/kern -c -I$(X11)/include  -DIRIX
+ O=o
+ OS=posix
+diff -r 5c953ddd29fa -r a4492b0dc79e include/dtos.h
+--- a/include/dtos.h	Sat Mar 09 20:51:48 2019 +0100
++++ b/include/dtos.h	Mon Jun 17 00:00:49 2019 -0400
+@@ -9,7 +9,3 @@
+ #else
+ #	error "Define an OS"
+ #endif
+-
+-#ifdef IRIX
+-typedef int socklen_t;
+-#endif
+diff -r 5c953ddd29fa -r a4492b0dc79e posix-mips/tas.s
+--- a/posix-mips/tas.s	Sat Mar 09 20:51:48 2019 +0100
++++ b/posix-mips/tas.s	Mon Jun 17 00:00:49 2019 -0400
+@@ -1,4 +1,8 @@
++#ifdef __sgi
++#include <sys/regdef.h>
++#else
+ #include <machine/regdef.h>
++#endif
+ 
+ .globl tas
+ .ent tas 2
