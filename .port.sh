@@ -15,7 +15,6 @@ shift
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
 PATH=/opt/local/bin:$prefix/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
-filename="$(basename $url)"
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
@@ -30,24 +29,33 @@ runcommandwd() {
 	echo "> $@ (workdir)"
 	(cd "$workdir" && "$@")
 }
-# Checks if a function is defined. In this case, if the function is not defined in the port's script, then we will use our defaults. This way, ports don't need to include fetch, configure, build, and install functions every time, but they can override our defaults if needed.
+# Checks if a function is defined. In this case, if the function is not defined in the port's script, then we will use our defaults. This way, ports don't need to include these functions every time, but they can override our defaults if needed.
 func_defined() {
 	PATH= command -V "$1"  > /dev/null 2>&1
 }
 func_defined fetch || fetch() {
-	runcommand curl -O "$url"
-	if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$sha1sum" ]; then
-		>&2 echo "Error: SHA-1 sum of $filename differs from expected sum."
-		exit 1
-	fi
-	case "$filename" in
-		*.tar*|.tbz*|.txz|.tgz)
-			runcommand tar xf "$filename"
-			;;
-		*)
-			echo "Note: no case for file $filename."
-			;;
-	esac
+	OLDIFS=$IFS
+	IFS=$'\n'
+	for f in $files; do
+		IFS=$OLDIFS
+		read url filename hash <<< $(echo "$f")
+		runcommand curl -O "$url" -o "$filename"
+		if [ "$(openssl sha1 "$filename" | cut -d' ' -f2)" != "$hash" ]; then
+			>&2 echo "Error: SHA-1 hash of $filename differs from expected hash."
+			exit 1
+		fi
+		case "$filename" in
+			*.tar*|.tbz*|*.txz|*.tgz)
+				runcommand tar xf "$filename"
+				;;
+			*.gz)
+				runcommand gzcat "$filename" > "$filename.out"
+				;;
+			*)
+				echo "Note: no case for file $filename."
+				;;
+		esac
+	done
 	if [ -d patches ]; then
 		for f in patches/*; do
 			runcommandwd patch < "$f"
@@ -70,13 +78,26 @@ func_defined install || install() {
 	runcommandwd gmake $installopts install
 }
 func_defined clean || clean() {
-	rm -rf "$workdir" 
+	rm -rf "$workdir" *.out
 }
 func_defined clean_dist || clean_dist() {
-	rm -f "$filename"
+	OLDIFS=$IFS
+	IFS=$'\n'
+	for f in $files; do
+		IFS=$OLDIFS
+		read url filename hash <<< $(echo "$f")
+		rm -f "$filename"
+	done
 }
 func_defined clean_all || clean_all() {
-	rm -rf "$workdir" "$filename"
+	rm -rf "$workdir" *.out
+	OLDIFS=$IFS
+	IFS=$'\n'
+	for f in $files; do
+		IFS=$OLDIFS
+		read url filename hash <<< $(echo "$f")
+		rm -f "$filename"
+	done
 }
 addtodb() {
 	echo "$port $version" >> "$prefix"/packages.db
@@ -112,7 +133,7 @@ do_install() {
 	addtodb
 }
 do_clean() {
-	echo "Cleaning workdir in $port!"
+	echo "Cleaning workdir and .out files in $port!"
 	clean
 }
 do_clean_dist() {
