@@ -107,7 +107,7 @@ addtodb() {
 installdepends() {
 	for depend in $depends; do
 		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
-			(cd "../$depend" && ./"$depend".sh)
+			(cd "../$depend" && ./package.sh)
 		fi
 	done
 }
