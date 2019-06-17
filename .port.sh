@@ -15,7 +15,7 @@ shift
 : "${patchlevel:=1}"
 CC=/opt/local/gcc-4.7.4/bin/gcc
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-4.7.4/lib32${ldlibpath:+:$ldlibpath}"
-PATH=/opt/local/bin:$prefix/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
+PATH=$prefix/bin:/opt/local/gcc-4.7.4/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
