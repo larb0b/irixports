@@ -9,6 +9,7 @@ build() {
 	runcommandwd sh Build.sh
 }
 install() {
+	mkdir -p $prefix/bin
 	runcommandwd cp mksh $prefix/bin
 	mkdir -p $prefix/share/man/man1
 	runcommand cp mksh-R57.cat1.gz.out $prefix/share/man/man1/mksh.1
