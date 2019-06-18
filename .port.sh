@@ -7,14 +7,14 @@ shift
 
 : "${makeopts:=-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)}"
 : "${installopts:=}"
-: "${ldlibpath:=/usr/lib32:/opt/local/gcc-4.7.4/lib32}"
+: "${gccversion:=4.7.4}"
+: "${ldlibpath:-}"
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
 : "${configopts:=}"
 : "${useconfigure:=false}"
 : "${depends:=}"
 : "${patchlevel:=1}"
-: "${gccversion:=4.7.4}"
 CC=/opt/local/gcc-$gccversion/bin/gcc
 CXX=/opt/local/gcc-$gccversion/bin/g++
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-$gccversion/lib32${ldlibpath:+:$ldlibpath}"
