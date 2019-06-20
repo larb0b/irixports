@@ -15,6 +15,10 @@ shift
 : "${useconfigure:=false}"
 : "${depends:=}"
 : "${patchlevel:=1}"
+: "${cppopts:=}"
+: "${ldopts:=}"
+CPPFLAGS="-I$prefix/include $cppopts"
+LDFLAGS="-I$prefix/lib -Wl,-rpath,$prefix/lib $ldopts"
 CC=/opt/local/gcc-$gccversion/bin/gcc
 CXX=/opt/local/gcc-$gccversion/bin/g++
 LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-$gccversion/lib32${ldlibpath:+:$ldlibpath}"
