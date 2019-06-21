@@ -1,9 +1,9 @@
 #!/opt/local/bin/mksh ../.port.sh
 # TODO: Figure out why authentication only works if the password is stored in the PASS environment variable and not entered into drawterm itself.
 port=drawterm
-version=20190309-5c953ddd29fa
-workdir=drawterm-5c953ddd29fa
-files="https://code.9front.org/hg/drawterm/archive/5c953ddd29fa.tar.gz drawterm-5c953ddd29fa.tar.gz f53aab743edf985cf1c8dd5966a1445d0e27944f"
+version=20190619-6b68ed2b2324
+workdir=drawterm-6b68ed2b2324
+files="https://code.9front.org/hg/drawterm/archive/6b68ed2b2324.tar.gz drawterm-6b68ed2b2324.tar.gz 964723b9ef62181d90641d8115eef4bc8624a0a7"
 makeopts="CONF=irix"
 
 install() {
