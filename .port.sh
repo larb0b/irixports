@@ -7,6 +7,7 @@ shift
 
 : "${makeopts:=-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)}"
 : "${installopts:=}"
+: "${compiler:=gcc}"
 : "${gccversion:=4.7.4}"
 : "${ldlibpath:-}"
 : "${workdir:=$port-$version}"
@@ -19,10 +20,19 @@ shift
 : "${ldopts:=}"
 CPPFLAGS="-I$prefix/include $cppopts"
 LDFLAGS="-I$prefix/lib -Wl,-rpath,$prefix/lib $ldopts"
-CC=/opt/local/gcc-$gccversion/bin/gcc
-CXX=/opt/local/gcc-$gccversion/bin/g++
-LD_LIBRARY_PATH="/usr/lib32:/opt/local/gcc-$gccversion/lib32${ldlibpath:+:$ldlibpath}"
-PATH=$prefix/bin:/opt/local/gcc-$gccversion/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11
+PATH="$prefix/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11"
+LD_LIBRARY_PATH="/usr/lib32${ldlibpath:+:$ldlibpath}"
+if [ "$compiler" = "gcc" ]; then
+	CC=/opt/local/gcc-$gccversion/bin/gcc
+	CXX=/opt/local/gcc-$gccversion/bin/g++
+	LD_LIBRARY_PATH="/opt/local/gcc-$gccversion/lib32:$LD_LIBRARY_PATH"
+	PATH="/opt/local/gcc-$gccversion/bin:$PATH"
+elif [ "$compiler" = "mipspro" ]; then
+	CC=/usr/bin/cc
+	CXX=/usr/bin/CC
+else
+	>&2 echo "Error: Valid compilers are gcc or mipspro."
+fi
 
 if [ -z "$port" ]; then
 	echo "Must set port to the port directory."
