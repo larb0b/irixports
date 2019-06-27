@@ -7,6 +7,7 @@ files="https://code.9front.org/hg/drawterm/archive/6b68ed2b2324.tar.gz drawterm-
 makeopts="CONF=irix"
 
 install() {
+	mkdir -p $prefix/bin $prefix/share/man/man1
 	runwd cp drawterm $prefix/bin
 	runwd cp drawterm.1 $prefix/share/man/man1
 }
