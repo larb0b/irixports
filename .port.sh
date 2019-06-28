@@ -32,10 +32,10 @@ elif [ "$compiler" = "mipspro" ]; then
 	CXX=/usr/bin/CC
 else
 	>&2 echo "Error: Valid compilers are gcc or mipspro."
+	exit 1
 fi
-
 if [ -z "$port" ]; then
-	echo "Must set port to the port directory."
+	>&2 echo "Must set port to the port directory."
 	exit 1
 fi
 
@@ -118,7 +118,12 @@ func_defined clean_all || clean_all() {
 	done
 }
 addtodb() {
-	echo "$port $version" >> "$prefix"/packages.db
+	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
+		echo "Adding $port $version to database of installed packages!"
+		echo "$port $version" >> "$prefix"/packages.db
+	else
+		>&2 echo "Warning: $port $version already installed. Not adding to database of installed packages!"
+	fi
 }
 installdepends() {
 	for depend in $depends; do
@@ -147,7 +152,6 @@ do_build() {
 do_install() {
 	echo "Installing $port!"
 	install
-	echo "Adding $port to database of installed packages!"
 	addtodb
 }
 do_clean() {
