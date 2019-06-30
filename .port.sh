@@ -5,7 +5,7 @@ prefix="$HOME/.local"
 . "$@"
 shift
 
-: "${makeopts:=-j$(hinv | grep Processor | head -n1 | cut -d' ' -f1)}"
+: "${makeopts:=-j$(hinv | grep Processor | grep MHZ | head -n1 | cut -d' ' -f1)}"
 : "${installopts:=}"
 : "${compiler:=gcc}"
 : "${gccversion:=4.7.4}"
