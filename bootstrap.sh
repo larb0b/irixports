@@ -14,7 +14,7 @@ echo "Extracting /opt/local."
 (cd / && tar xf optlocal.tar)
 echo "Fetching GCC 4.7.4."
 mkdir -p /tmp/gcc4
-/opt/local/bin/curl -o /tmp/gcc4/gcc.tardist http://ports.sgi.sh/lang/gcc47/gcc47-4.7.4-01-irix-6.5-mips-201902070817.tardist
+/opt/local/bin/curl -o /tmp/gcc4/gcc4.tardist http://ports.sgi.sh/lang/gcc47/gcc47-4.7.4-01-irix-6.5-mips-201902070817.tardist
 if [ "$(openssl sha1 /tmp/gcc4/gcc4.tardist | cut -d' ' -f2)" != "d7aeebce0a794d9dbdb4ce78d4f55010dab07923" ]; then
 	>&2 echo "Error: gcc4.tardist checksum incorrect. Try running this script again."
 	exit 1
