@@ -17,3 +17,11 @@ You can run the steps of port scripts one at a time:
 
 The port scripts have cleaning functionality:  
 `clean`, `clean_dist`, `clean_all`.
+
+# Troubleshooting
+
+## ./package.sh fails
+```
+/opt/local/bin/mksh: bad interpreter: No such file or directory
+```
+* Run ./bootstrap.sh
