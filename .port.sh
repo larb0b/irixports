@@ -1,6 +1,8 @@
 #!/opt/local/bin/mksh
 set -eu
 prefix="$HOME/.local"
+CFLAGS=
+CXXFLAGS=
 
 . "$@"
 shift
