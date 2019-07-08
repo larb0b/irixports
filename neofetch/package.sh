@@ -2,5 +2,7 @@
 port=neofetch
 version=6.0.0
 workdir=neofetch-6.0.0
-useconfigure=true
-files="https://github.com/dylanaraps/neofetch/archive/6.0.0.tar.gz 6.0.0.tar.gz e6d119755acdf9104d7ba236b1242696940ed6dd"
+useconfigure=false
+files="https://codeload.github.com/dylanaraps/neofetch/tar.gz/6.0.0 6.0.0.tar.gz d78dcf1d6352eafa616f9d484e36cd03804a0d6c"
+
+export PREFIX=$prefix
