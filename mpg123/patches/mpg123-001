@@ -1,0 +1,13 @@
+diff -ur mpg123-1.25.10/src/resolver.c mpg123-1.25.10/src/resolver.c
+--- mpg123-1.25.10/src/resolver.c       Tue Feb 27 06:26:38 2018
++++ mpg123-1.25.10/src/resolver.c  Tue Jul  9 09:35:44 2019
+@@ -22,6 +22,9 @@
+ #include <netdb.h>
+ #include <sys/param.h>
+ #include <sys/socket.h>
++#ifdef __sgi
++#include <sys/resource.h> /* struct timeval */
++#endif
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+ #include <errno.h>
