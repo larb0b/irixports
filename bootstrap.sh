@@ -34,5 +34,6 @@ echo "Extracting GCC 8.2.0."
 (cd /tmp/gcc8 && tar xf gcc8.tardist && rm gcc8.tardist)
 echo "Installing GCC 8.2.0."
 inst -A -f /tmp/gcc8
-echo "Done! Removing temporary files and exiting."
+echo "Done! Removing temporary files."
 rm -r /tmp/gcc4 /tmp/gcc8 /optlocal.tar
+echo "When working with irixports, you should make sure that GCC's lib32 directory is in LD_LIBRARYN32_PATH. In a bourne-like shell, you can put something like export LD_LIBRARYN32_PATH=$LD_LIBRARYN32_PATH:/opt/local/gcc-4.7.4/lib32 in your profile."
