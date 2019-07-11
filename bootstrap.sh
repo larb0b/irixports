@@ -5,7 +5,7 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 echo "Fetching /opt/local."
-perl .fetch.pl mirror.rqsall.com /misc/optlocal.tar /optlocal.tar
+perl .fetch.pl mirror.rqsall.com /misc/optlocal.tar /optlocal.tar || >&2 echo "Error: optlocal.tar download failed. Make sure that networking has been configured properly."
 if [ "$(openssl sha1 /optlocal.tar | cut -d' ' -f2)" != "5c79c33570b8d58b7d71a3cba513ea5e2b148be4" ]; then
 	>&2 echo "Error: optlocal.tardist checksum incorrect. Try running this script again."
 	exit 1
@@ -34,5 +34,6 @@ echo "Extracting GCC 8.2.0."
 (cd /tmp/gcc8 && tar xf gcc8.tardist && rm gcc8.tardist)
 echo "Installing GCC 8.2.0."
 inst -A -f /tmp/gcc8
-echo "Done! Removing temporary files and exiting."
+echo "Done! Removing temporary files."
 rm -r /tmp/gcc4 /tmp/gcc8 /optlocal.tar
+echo "When working with irixports, you should make sure that GCC's lib32 directory is in LD_LIBRARYN32_PATH. In a bourne-like shell, you can put something like export LD_LIBRARYN32_PATH=$LD_LIBRARYN32_PATH:/opt/local/gcc-4.7.4/lib32 in your profile."
