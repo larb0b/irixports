@@ -1,7 +1,8 @@
 #!/opt/local/bin/mksh
 set -eu
-prefix="$HOME/.local"
-CFLAGS=
+prefix="/usr/local"
+USEGCC="8.2.0"
+CFLAGS="-fpermissive"
 CXXFLAGS=
 
 . "$@"
@@ -10,7 +11,7 @@ shift
 : "${makeopts:=-j$(sysconf | grep AVAIL_PROCESSORS | awk '{print $2}')}"
 : "${installopts:=}"
 : "${compiler:=gcc}"
-: "${gccversion:=4.7.4}"
+: "${gccversion:=$USEGCC}"
 : "${ldlibpath:-}"
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
