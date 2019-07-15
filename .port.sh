@@ -3,6 +3,7 @@ set -eu
 prefix="$HOME/.local"
 CFLAGS=
 CXXFLAGS=
+PKG_CONFIG_PATH=
 
 . "$@"
 shift
