@@ -1,6 +1,7 @@
 #!/opt/local/bin/mksh
 set -eu
 prefix="$HOME/.local"
+[ -f config.sh ] && . config.sh
 CFLAGS=
 CXXFLAGS=
 PKG_CONFIG_PATH=
