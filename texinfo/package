@@ -1,5 +1,4 @@
 #!/opt/local/bin/mksh ../.port.sh
-portAuthor=dillera@gmail.com
 port=texinfo
 version=6.5
 useconfigure=true
