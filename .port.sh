@@ -1,8 +1,10 @@
 #!/opt/local/bin/mksh
 set -eu
 prefix="$HOME/.local"
+[ -f config.sh ] && . config.sh
 CFLAGS=
 CXXFLAGS=
+PKG_CONFIG_PATH=
 
 . "$@"
 shift
@@ -10,7 +12,7 @@ shift
 : "${makeopts:=-j$(sysconf | grep AVAIL_PROCESSORS | awk '{print $2}')}"
 : "${installopts:=}"
 : "${compiler:=gcc}"
-: "${gccversion:=4.7.4}"
+: "${gccversion:=8.2.0}"
 : "${ldlibpath:-}"
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
@@ -27,7 +29,7 @@ LD_LIBRARYN32_PATH="/usr/lib32${ldlibpath:+:$ldlibpath}"
 if [ "$compiler" = "gcc" ]; then
 	CC=/opt/local/gcc-$gccversion/bin/gcc
 	CXX=/opt/local/gcc-$gccversion/bin/g++
-	LD_LIBRARYN32_PATH="/opt/local/gcc-$gccversion/lib32:$LD_LIBRARYN32_PATH"
+	LD_LIBRARYN32_PATH="/opt/local/gmp/lib:/opt/local/mpc/lib:/opt/local/mpfr/lib:/opt/local/gcc-$gccversion/lib32:$LD_LIBRARYN32_PATH"
 	PATH="/opt/local/gcc-$gccversion/bin:$PATH"
 elif [ "$compiler" = "mipspro" ]; then
 	CC=/usr/bin/cc
