@@ -17,3 +17,9 @@ You can run the steps of port scripts one at a time:
 
 The port scripts have cleaning functionality:  
 `clean`, `clean_dist`, `clean_all`.
+
+## Local Config
+
+Create a file called config.sh in the top level directory.
+Put in changes there to change the behavior of .port.sh script.
+For instance, prefix=/usr/local
