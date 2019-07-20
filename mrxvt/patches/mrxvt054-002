@@ -1,0 +1,10 @@
+--- mrxvt-0.5.4.orig/config.h.in	2008-05-12 10:22:41.000000000 +0000
++++ mrxvt-0.5.4/config.h.in	2019-07-20 14:34:53.628971562 +0000
+@@ -655,3 +655,7 @@
+ 
+ /* Define as `fork' if `vfork' does not work. */
+ #undef vfork
++
++#ifndef PATH_MAX
++# define PATH_MAX 4096
++#endif

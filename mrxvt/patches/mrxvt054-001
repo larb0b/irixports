@@ -1,0 +1,69 @@
+diff -r -u -w mrxvt-0.5.4/src/init.c mrxvt-0.5.4-patched/src/init.c
+--- mrxvt-0.5.4/src/init.c	2008-06-13 20:08:13.000000000 +0000
++++ mrxvt-0.5.4-patched/src/init.c	2019-07-18 14:11:10.551324080 +0000
+@@ -812,7 +812,7 @@
+     {
+ 	char fifo_name[FILENAME_MAX];
+ 
+-	sprintf( fifo_name, "/tmp/.mrxvt-%d", getpid() );
++	sprintf( fifo_name, "/tmp/.mrxvt-%ld", getpid() );
+ 	r->fbuf_ptr = r->fifo_buf;
+ 	r->fifo_name = STRDUP( fifo_name );
+     }
+diff -r -u -w mrxvt-0.5.4/src/logging.c mrxvt-0.5.4-patched/src/logging.c
+--- mrxvt-0.5.4/src/logging.c	2008-02-17 22:04:50.000000000 +0000
++++ mrxvt-0.5.4-patched/src/logging.c	2019-07-18 14:04:12.446303160 +0000
+@@ -28,6 +28,8 @@
+  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  *----------------------------------------------------------------------*/
+ 
++#include <utmpx.h>
++
+ #include "../config.h"
+ #include "rxvt.h"
+ 
+diff -r -u -w mrxvt-0.5.4/src/misc.c mrxvt-0.5.4-patched/src/misc.c
+--- mrxvt-0.5.4/src/misc.c	2008-02-17 22:04:50.000000000 +0000
++++ mrxvt-0.5.4-patched/src/misc.c	2019-07-18 14:13:37.127857200 +0000
+@@ -297,14 +297,14 @@
+ 
+ 		case 'p':
+ 		    /* Pid of process in current tab */
+-		    j += snprintf( dst + j, maxLen - j, "%d",
++		    j += snprintf( dst + j, maxLen - j, "%ld",
+ 			    PVTS(r, page)->cmd_pid );
+ 		    i++;
+ 		    break;
+ 
+ 		case 'P':
+ 		    /* PID of mrxvt */
+-		    j += snprintf( dst + j, maxLen - j, "%d", getpid() );
++		    j += snprintf( dst + j, maxLen - j, "%ld", getpid() );
+ 		    i++;
+ 		    break;
+ 
+diff -r -u -w mrxvt-0.5.4/src/rxvt.h mrxvt-0.5.4-patched/src/rxvt.h
+--- mrxvt-0.5.4/src/rxvt.h	2008-08-04 08:41:35.000000000 +0000
++++ mrxvt-0.5.4-patched/src/rxvt.h	2019-07-18 14:04:12.453215960 +0000
+@@ -448,6 +448,9 @@
+ # ifdef OS_OSF
+ #  define LASTLOG_FILE	    "/var/adm/lastlog"
+ # endif
++# ifdef __sgi
++#  define LASTLOG_FILE      "/var/adm/lastlog"
++# endif
+ # if !defined(LASTLOG_FILE) && defined(_PATH_LASTLOG)
+ #  define LASTLOG_FILE     _PATH_LASTLOG
+ # endif
+diff -r -u -w mrxvt-0.5.4/src/tabbar.c mrxvt-0.5.4-patched/src/tabbar.c
+--- mrxvt-0.5.4/src/tabbar.c	2008-06-30 07:20:48.000000000 +0000
++++ mrxvt-0.5.4-patched/src/tabbar.c	2019-07-18 14:12:12.084539600 +0000
+@@ -1295,7 +1295,7 @@
+ 		 */
+ 		char	proc_cwd[32];		/* 16 is enough */
+ 
+-		sprintf( proc_cwd, "/proc/%d/cwd", AVTS(r)->cmd_pid );
++		sprintf( proc_cwd, "/proc/%ld/cwd", AVTS(r)->cmd_pid );
+ 		if( (len = readlink( proc_cwd, child_cwd, PATH_MAX-1) ) > 0 )
+ 		    /* readlink does not null terminate */
+ 		    child_cwd[len] = 0;
