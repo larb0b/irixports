@@ -1,0 +1,54 @@
+! version.h:
+diff -urnp patch-2.7.6_clean/src/util.c patch-2.7.6/src/util.c
+*** patch-2.7.6_clean/src/util.c	Sat Feb  3 04:41:49 2018
+--- patch-2.7.6/src/util.c	Sun Jul 21 08:40:06 2019
+*************** move_file (char const *from, bool *from_
+*** 460,471 ****
+  
+  	  /* FROM contains the contents of the symlink we have patched; need
+  	     to convert that back into a symlink. */
+! 	  char *buffer = xmalloc (PATH_MAX);
+  	  int fd, size = 0, i;
+  
+  	  if ((fd = safe_open (from, O_RDONLY | O_BINARY, 0)) < 0)
+  	    pfatal ("Can't reopen file %s", quotearg (from));
+! 	  while ((i = read (fd, buffer + size, PATH_MAX - size)) > 0)
+  	    size += i;
+  	  if (i != 0 || close (fd) != 0)
+  	    read_fatal ();
+--- 460,471 ----
+  
+  	  /* FROM contains the contents of the symlink we have patched; need
+  	     to convert that back into a symlink. */
+! 	  char *buffer = xmalloc (INT8_MAX);
+  	  int fd, size = 0, i;
+  
+  	  if ((fd = safe_open (from, O_RDONLY | O_BINARY, 0)) < 0)
+  	    pfatal ("Can't reopen file %s", quotearg (from));
+! 	  while ((i = read (fd, buffer + size, INT8_MAX - size)) > 0)
+  	    size += i;
+  	  if (i != 0 || close (fd) != 0)
+  	    read_fatal ();
+*************** copy_file (char const *from, char const 
+*** 610,619 ****
+  
+    if (S_ISLNK (mode))
+      {
+!       char *buffer = xmalloc (PATH_MAX + 1);
+        ssize_t r;
+  
+!       if ((r = safe_readlink (from, buffer, PATH_MAX)) < 0)
+  	pfatal ("Can't read %s %s", "symbolic link", from);
+        buffer[r] = '\0';
+        if (safe_symlink (buffer, to) != 0)
+--- 610,619 ----
+  
+    if (S_ISLNK (mode))
+      {
+!       char *buffer = xmalloc (INT8_MAX + 1);
+        ssize_t r;
+  
+!       if ((r = safe_readlink (from, buffer, INT8_MAX)) < 0)
+  	pfatal ("Can't read %s %s", "symbolic link", from);
+        buffer[r] = '\0';
+        if (safe_symlink (buffer, to) != 0)
