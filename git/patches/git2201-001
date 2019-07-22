@@ -1,0 +1,197 @@
+diff -Naur git-2.20.1.orig/archive-tar.c git-2.20.1/archive-tar.c
+--- git-2.20.1.orig/archive-tar.c	2019-07-21 16:14:26.554204398 +0000
++++ git-2.20.1/archive-tar.c	2019-07-21 20:23:16.329555160 +0000
+@@ -11,6 +11,14 @@
+ 
+ #define RECORDSIZE	(512)
+ #define BLOCKSIZE	(RECORDSIZE * 20)
++#if !defined PRIoMAX || PRI_MACROS_BROKEN
++# undef PRIoMAX
++# ifdef _ABI64
++#  define PRIoMAX "lo"
++# else
++#  define PRIoMAX "llo"
++# endif
++#endif
+ 
+ static char block[BLOCKSIZE];
+ static unsigned long offset;
+diff -Naur git-2.20.1.orig/commit-graph.c git-2.20.1/commit-graph.c
+--- git-2.20.1.orig/commit-graph.c	2019-07-21 16:14:26.652339598 +0000
++++ git-2.20.1/commit-graph.c	2019-07-21 20:23:32.431015960 +0000
+@@ -45,6 +45,14 @@
+ #define GRAPH_CHUNKLOOKUP_WIDTH 12
+ #define GRAPH_MIN_SIZE (GRAPH_HEADER_SIZE + 4 * GRAPH_CHUNKLOOKUP_WIDTH \
+ 			+ GRAPH_FANOUT_SIZE + GRAPH_OID_LEN)
++#if !defined PRIu64 || PRI_MACROS_BROKEN
++# undef PRIu64
++# ifdef _ABI64
++#  define PRIu64 "lu"
++# else
++#  define PRIu64 "llu"
++# endif
++#endif
+ 
+ char *get_commit_graph_filename(const char *obj_dir)
+ {
+diff -Naur git-2.20.1.orig/config.h git-2.20.1/config.h
+--- git-2.20.1.orig/config.h	2019-07-21 16:14:26.720686798 +0000
++++ git-2.20.1/config.h	2019-07-21 20:23:49.842794360 +0000
+@@ -19,6 +19,60 @@
+ 
+ #define CONFIG_REGEX_NONE ((void *)1)
+ 
++#if !defined PRId64 || PRI_MACROS_BROKEN
++# undef PRId64
++# ifdef _ABI64
++#  define PRId64 "ld"
++# else
++#  define PRId64 "lld"
++# endif
++#endif
++
++#if !defined PRIu64 || PRI_MACROS_BROKEN
++# undef PRIu64
++# ifdef _ABI64
++#  define PRIu64 "lu"
++# else
++#  define PRIu64 "llu"
++# endif
++#endif
++
++#if !defined PRIx64 || PRI_MACROS_BROKEN
++# undef PRIx64
++# ifdef _ABI64
++#  define PRIx64 "lx"
++# else
++#  define PRIx64 "llx"
++# endif
++#endif
++
++#if !defined PRIX64 || PRI_MACROS_BROKEN
++# undef PRIX64
++# ifdef _ABI64
++#  define PRIX64 "lX"
++# else
++#  define PRIX64 "llX"
++# endif
++#endif
++
++#if !defined PRIdMAX || PRI_MACROS_BROKEN
++# undef PRIdMAX
++# ifdef _ABI64
++#  define PRIdMAX "ld"
++# else
++#  define PRIdMAX "lld"
++# endif
++#endif
++
++#if !defined PRIoMAX || PRI_MACROS_BROKEN
++# undef PRIoMAX
++# ifdef _ABI64
++#  define PRIoMAX "lo"
++# else
++#  define PRIoMAX "llo"
++# endif
++#endif
++
+ struct git_config_source {
+ 	unsigned int use_stdin:1;
+ 	const char *file;
+diff -Naur git-2.20.1.orig/config.mak.uname git-2.20.1/config.mak.uname
+--- git-2.20.1.orig/config.mak.uname	2019-07-21 16:14:26.721948398 +0000
++++ git-2.20.1/config.mak.uname	2019-07-21 20:22:41.561331960 +0000
+@@ -284,40 +284,42 @@
+ 	LIBC_CONTAINS_LIBINTL = YesPlease
+ endif
+ ifeq ($(uname_S),IRIX)
+-	NO_SETENV = YesPlease
+-	NO_UNSETENV = YesPlease
+-	NO_STRCASESTR = YesPlease
+-	NO_MEMMEM = YesPlease
+-	NO_MKDTEMP = YesPlease
+-	# When compiled with the MIPSpro 7.4.4m compiler, and without pthreads
+-	# (i.e. NO_PTHREADS is set), and _with_ MMAP (i.e. NO_MMAP is not set),
+-	# git dies with a segmentation fault when trying to access the first
+-	# entry of a reflog.  The conservative choice is made to always set
+-	# NO_MMAP.  If you suspect that your compiler is not affected by this
+-	# issue, comment out the NO_MMAP statement.
+-	NO_MMAP = YesPlease
+-	NO_REGEX = YesPlease
+-	SNPRINTF_RETURNS_BOGUS = YesPlease
+-	SHELL_PATH = /usr/gnu/bin/bash
+-	NEEDS_LIBGEN = YesPlease
++        NO_SETENV = YesPlease
++        NO_UNSETENV = YesPlease
++        NO_STRCASESTR = YesPlease
++        NO_MEMMEM = YesPlease
++        NO_MKDTEMP = YesPlease
++        # When compiled with the MIPSpro 7.4.4m compiler, and without pthreads
++        # (i.e. NO_PTHREADS is set), and _with_ MMAP (i.e. NO_MMAP is not set),
++        # git dies with a segmentation fault when trying to access the first
++        # entry of a reflog.  The conservative choice is made to always set
++        # NO_MMAP.  If you suspect that your compiler is not affected by this
++        # issue, comment out the NO_MMAP statement.
++        #NO_MMAP = YesPlease
++        NO_REGEX = YesPlease
++        SNPRINTF_RETURNS_BOGUS = YesPlease
++        SHELL_PATH = /opt/local/bin/bash
++        NEEDS_LIBGEN = YesPlease
++        CC = gcc
+ endif
+ ifeq ($(uname_S),IRIX64)
+-	NO_SETENV = YesPlease
+-	NO_UNSETENV = YesPlease
+-	NO_STRCASESTR = YesPlease
+-	NO_MEMMEM = YesPlease
+-	NO_MKDTEMP = YesPlease
+-	# When compiled with the MIPSpro 7.4.4m compiler, and without pthreads
+-	# (i.e. NO_PTHREADS is set), and _with_ MMAP (i.e. NO_MMAP is not set),
+-	# git dies with a segmentation fault when trying to access the first
+-	# entry of a reflog.  The conservative choice is made to always set
+-	# NO_MMAP.  If you suspect that your compiler is not affected by this
+-	# issue, comment out the NO_MMAP statement.
+-	NO_MMAP = YesPlease
+-	NO_REGEX = YesPlease
+-	SNPRINTF_RETURNS_BOGUS = YesPlease
+-	SHELL_PATH = /usr/gnu/bin/bash
+-	NEEDS_LIBGEN = YesPlease
++        NO_SETENV = YesPlease
++        NO_UNSETENV = YesPlease
++        NO_STRCASESTR = YesPlease
++        NO_MEMMEM = YesPlease
++        NO_MKDTEMP = YesPlease
++        # When compiled with the MIPSpro 7.4.4m compiler, and without pthreads
++        # (i.e. NO_PTHREADS is set), and _with_ MMAP (i.e. NO_MMAP is not set),
++        # git dies with a segmentation fault when trying to access the first
++        # entry of a reflog.  The conservative choice is made to always set
++        # NO_MMAP.  If you suspect that your compiler is not affected by this
++        # issue, comment out the NO_MMAP statement.
++        #NO_MMAP = YesPlease
++        NO_REGEX = YesPlease
++        SNPRINTF_RETURNS_BOGUS = YesPlease
++        SHELL_PATH = /opt/local/bin/bash
++        NEEDS_LIBGEN = YesPlease
++        CC = gcc
+ endif
+ ifeq ($(uname_S),HP-UX)
+ 	INLINE = __inline
+diff -Naur git-2.20.1.orig/json-writer.c git-2.20.1/json-writer.c
+--- git-2.20.1.orig/json-writer.c	2019-07-21 16:14:30.507171598 +0000
++++ git-2.20.1/json-writer.c	2019-07-21 20:24:04.775503960 +0000
+@@ -1,6 +1,15 @@
+ #include "cache.h"
+ #include "json-writer.h"
+ 
++#if !defined PRIdMAX || PRI_MACROS_BROKEN
++# undef PRIdMAX
++# ifdef _ABI64
++#  define PRIdMAX "ld"
++# else
++#  define PRIdMAX "lld"
++# endif
++#endif
++
+ void jw_init(struct json_writer *jw)
+ {
+ 	strbuf_init(&jw->json, 0);
