@@ -195,3 +195,83 @@ diff -Naur git-2.20.1.orig/json-writer.c git-2.20.1/json-writer.c
  void jw_init(struct json_writer *jw)
  {
  	strbuf_init(&jw->json, 0);
+--- git-2.20.1.orig/sha1-file.c	2019-07-21 16:14:31.134883598 +0000
++++ git-2.20.1/sha1-file.c	2019-07-22 18:10:11.591899936 +0000
+@@ -32,6 +32,7 @@
+ #include "packfile.h"
+ #include "fetch-object.h"
+ #include "object-store.h"
++#include <stdint.h>
+ 
+ /* The maximum size for an object header. */
+ #define MAX_HEADER_LEN 32
+--- git-2.20.1.orig/utf8.c	2019-07-21 16:14:42.140694798 +0000
++++ git-2.20.1/utf8.c	2019-07-22 18:13:59.909627936 +0000
+@@ -1,6 +1,7 @@
+ #include "git-compat-util.h"
+ #include "strbuf.h"
+ #include "utf8.h"
++#include <stdint.h>
+ 
+ /* This code is originally from http://www.cl.cam.ac.uk/~mgk25/ucs/ */
+ 
+--- git-2.20.1.orig/wrapper.c	2019-07-21 16:14:42.161810798 +0000
++++ git-2.20.1/wrapper.c	2019-07-22 18:15:43.279671136 +0000
+@@ -3,6 +3,7 @@
+  */
+ #include "cache.h"
+ #include "config.h"
++#include <stdint.h>
+ 
+ static void do_nothing(size_t size)
+ {
+--- git-2.20.1.orig/vcs-svn/svndiff.c	2019-07-21 16:14:42.150125998 +0000
++++ git-2.20.1/vcs-svn/svndiff.c	2019-07-22 18:27:50.364822336 +0000
+@@ -7,6 +7,7 @@
+ #include "sliding_window.h"
+ #include "line_buffer.h"
+ #include "svndiff.h"
++#include <stdint.h>
+ 
+ /*
+  * svndiff0 applier
+--- git-2.20.1.orig/run-command.c	2019-07-21 16:14:31.108382798 +0000
++++ git-2.20.1/run-command.c	2019-07-22 18:52:27.965821536 +0000
+@@ -501,7 +501,7 @@
+ #endif
+ }
+ 
+-static void atfork_parent(struct atfork_state *as)
++static void atfork_parent_git(struct atfork_state *as)
+ {
+ #ifdef NO_PTHREADS
+ 	if (sigprocmask(SIG_SETMASK, &as->old, NULL))
+@@ -839,7 +839,7 @@
+ 			child_die(CHILD_ERR_ERRNO);
+ 		}
+ 	}
+-	atfork_parent(&as);
++	atfork_parent_git(&as);
+ 	if (cmd->pid < 0)
+ 		error_errno("cannot fork() for %s", cmd->argv[0]);
+ 	else if (cmd->clean_on_exit)
+--- git-2.20.1.orig/Makefile	2019-07-21 16:14:26.548733198 +0000
++++ git-2.20.1/Makefile	2019-07-22 19:38:32.038284560 +0000
+@@ -556,8 +556,6 @@
+ TAR = tar
+ FIND = find
+ INSTALL = install
+-TCL_PATH = tclsh
+-TCLTK_PATH = wish
+ XGETTEXT = xgettext
+ MSGFMT = msgfmt
+ CURL_CONFIG = curl-config
+@@ -571,7 +569,7 @@
+ SPARSE_FLAGS =
+ SPATCH_FLAGS = --all-includes --patch .
+ 
+-
++NO_TCLTK = NoThanks
+ 
+ ### --- END CONFIGURATION SECTION ---
+ 
