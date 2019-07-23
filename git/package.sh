@@ -11,4 +11,3 @@ configure(){
 	#runwd automake
 	runwd ./configure --prefix="$prefix" $configopts
 }
-
