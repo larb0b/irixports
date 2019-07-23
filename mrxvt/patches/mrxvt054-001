@@ -1,5 +1,5 @@
 diff -u -r -w mrxvt-0.5.4/src/init.c mrxvt-0.5.4-patched/src/init.c
---- mrxvt-0.5.4/src/init.c	2008-06-13 20:08:13.000000000 +0000
+--- mrxvt-0.5.4/src/init.c	2008-06-13 21:08:13.000000000 +0000
 +++ mrxvt-0.5.4-patched/src/init.c	2019-07-19 07:34:24.638524560 +0000
 @@ -812,7 +812,7 @@
      {
