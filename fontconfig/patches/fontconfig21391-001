@@ -1,0 +1,24 @@
+--- fontconfig-2.13.91.orig/test/test-migration.c	2018-06-05 07:36:38.000000000 +0000
++++ fontconfig-2.13.91/test/test-migration.c	2019-07-24 12:38:11.276600500 +0000
+@@ -144,6 +144,21 @@
+ }
+ 
+ int
++setenv(const char *name, const char *value, int o)
++{
++    size_t len = strlen(name) + strlen(value) + 1;
++    char *s = malloc(len+1);
++    int ret;
++
++    snprintf(s, len, "%s=%s", name, value);
++    ret = putenv(s);
++    free(s);
++    return ret;
++}
++
++#define unsetenv(x) setenv(x, "", 1)
++
++int
+ main(void)
+ {
+     char template[32] = "fontconfig-XXXXXXXX";

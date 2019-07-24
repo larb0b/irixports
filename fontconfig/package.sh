@@ -1,8 +1,8 @@
 #!/opt/local/bin/mksh ../.port.sh
 port=fontconfig
-version=2.13.1
+version=2.13.91
 useconfigure=true
-files="https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.13.1.tar.gz fontconfig-2.13.1.tar.gz e073e1d23d9d6e83a8d2d6eafa5905a541b77975"
+files="https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.13.91.tar.gz fontconfig-2.13.91.tar.gz c93cba1f67a5375ff90e8994814634f09c37baf4"
 
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/people/edodd/.local/lib/pkgconfig
 
