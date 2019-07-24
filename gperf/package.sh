@@ -1,5 +1,4 @@
 #!/opt/local/bin/mksh ../.port.sh
-gccversion=4.7.4
 port=gperf
 version=3.1
 useconfigure=true
