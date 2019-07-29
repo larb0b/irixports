@@ -22,3 +22,61 @@
  main(void)
  {
      char template[32] = "fontconfig-XXXXXXXX";
+--- fontconfig-2.13.91.orig/test/test-issue107.c	2019-05-08 05:22:25.000000000 +0000
++++ fontconfig-2.13.91/test/test-issue107.c	2019-07-24 13:51:54.830093142 +0000
+@@ -48,21 +48,9 @@
+ #ifdef _WIN32
+ #include <direct.h>
+ #define mkdir(path,mode) _mkdir(path)
+-
+-int
+-setenv(const char *name, const char *value, int o)
+-{
+-    size_t len = strlen(name) + strlen(value) + 1;
+-    char *s = malloc(len+1);
+-    int ret;
+-
+-    snprintf(s, len, "%s=%s", name, value);
+-    ret = _putenv(s);
+-    free(s);
+-    return ret;
+-}
+ #endif
+ 
++
+ extern FcChar8 *FcConfigRealFilename (FcConfig *, FcChar8 *);
+ 
+ #ifdef HAVE_MKDTEMP
+@@ -176,6 +164,21 @@
+ }
+ 
+ int
++setenv(const char *name, const char *value, int o)
++{
++    size_t len = strlen(name) + strlen(value) + 1;
++    char *s = malloc(len+1);
++    int ret;
++
++    snprintf(s, len, "%s=%s", name, value);
++    ret = putenv(s);
++    free(s);
++    return ret;
++}
++
++#define unsetenv(x) setenv(x, "", 1)
++
++int
+ main(void)
+ {
+     FcConfig *cfg = FcConfigCreate ();
+diff -Naur fontconfig-2.13.91.orig/src/fccfg.c fontconfig-2.13.91/src/fccfg.c
+--- fontconfig-2.13.91.orig/src/fccfg.c	2019-07-28 12:18:43.693860154 +0000
++++ fontconfig-2.13.91/src/fccfg.c	2019-07-28 12:20:06.046668954 +0000
+@@ -27,6 +27,7 @@
+ #include "fcint.h"
+ #include <dirent.h>
+ #include <sys/types.h>
++#include <internal/limits_core.h>
+ 
+ #if defined (_WIN32) && !defined (R_OK)
+ #define R_OK 4
