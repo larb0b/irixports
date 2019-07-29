@@ -171,11 +171,26 @@ do_clean_all() {
 	clean_all
 }
 
+pre_snapshot(){
+	find $prefix/. > snapshot.pre
+}
+
+post_snapshot(){
+	find $prefix/. > snapshot.post
+}
+
+gen_changed_list(){
+	diff snapshot.pre snapshot.post > modified.list
+}
+
 if [ -z "${1:-}" ]; then
 	do_fetch
+	pre_snapshot
 	do_configure
 	do_build
 	do_install
+	post_snapshot
+	gen_changed_list
 else
 	case "$1" in
 		fetch|configure|build|install|clean|clean_dist|clean_all)
