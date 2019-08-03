@@ -2,6 +2,16 @@
 set -eu
 prefix="$HOME/.local"
 [ -f ../config.sh ] && . ../config.sh
+
+# Check for lockdir first
+if [ -d .lockdir ]; then
+        >&2 echo "Lock exists. Please install one port at a time, or remove .lockdir ."
+	exit 1
+else
+        mkdir .lockdir
+fi
+
+
 CFLAGS=
 CXXFLAGS=
 PKG_CONFIG_PATH=
@@ -172,11 +182,11 @@ do_clean_all() {
 }
 
 pre_snapshot(){
-	find $prefix/. > snapshot.pre
+	find $prefix > snapshot.pre
 }
 
 post_snapshot(){
-	find $prefix/. > snapshot.post
+	find $prefix > snapshot.post
 }
 
 gen_changed_list(){
@@ -201,4 +211,8 @@ else
 			exit 1
 			;;
 	esac
+fi
+
+if [ -d .lockdir ]; then
+	rm -rf .lockdir
 fi
