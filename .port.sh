@@ -123,10 +123,10 @@ func_defined clean_all || clean_all() {
 }
 addtodb() {
 	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
-		echo "Adding $port $version to database of installed packages!"
+		echo "Adding $port $version to database of installed ports!"
 		echo "$port $version" >> "$prefix"/packages.db
 	else
-		>&2 echo "Warning: $port $version already installed. Not adding to database of installed packages!"
+		>&2 echo "Warning: $port $version already installed. Not adding to database of installed ports!"
 	fi
 }
 installdepends() {
@@ -135,6 +135,17 @@ installdepends() {
 			(cd "../$depend" && ./package.sh)
 		fi
 	done
+}
+uninstall() {
+	if [ -f plist ]; then
+		for f in `cat plist`; do
+			run rm -rf $prefix/$f
+		done
+		grep -v "^$port " $prefix/packages.db > packages.dbtmp
+		mv packages.dbtmp $prefix/packages.db
+	else
+		>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
+	fi
 }
 do_fetch() {
 	installdepends
@@ -170,6 +181,10 @@ do_clean_all() {
 	echo "Cleaning all in $port!"
 	clean_all
 }
+do_uninstall() {
+	echo "Uninstalling $port!"
+	uninstall
+}
 
 if [ -z "${1:-}" ]; then
 	do_fetch
@@ -178,11 +193,11 @@ if [ -z "${1:-}" ]; then
 	do_install
 else
 	case "$1" in
-		fetch|configure|build|install|clean|clean_dist|clean_all)
+		fetch|configure|build|install|clean|clean_dist|clean_all|uninstall)
 			do_$1
 			;;
 		*)
-			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all."
+			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all, uninstall."
 			exit 1
 			;;
 	esac
