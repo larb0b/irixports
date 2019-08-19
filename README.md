@@ -4,7 +4,7 @@ Simple ports system for IRIX that's designed to be able to run on a fresh instal
 
 ## Bootstrapping
 
-If you've never used irixports on the system, run bootstrap.sh as root to bootstrap some necessary tools.
+If you've never used irixports on the system, run `bootstrap.sh` as root to bootstrap some necessary tools.
 
 ## Installing a port
 
