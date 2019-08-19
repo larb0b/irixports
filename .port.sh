@@ -137,15 +137,19 @@ installdepends() {
 	done
 }
 uninstall() {
-	if [ -f plist ]; then
-		for f in `cat plist`; do
-			run rm -rf $prefix/$f
-		done
-		# Without || true, mv will not be executed if you are uninstalling your only remaining port.
-		grep -v "^$port " $prefix/packages.db > packages.dbtmp || true
-		mv packages.dbtmp $prefix/packages.db
+	if grep "^$port " $prefix/packages.db; then
+		if [ -f plist ]; then
+			for f in `cat plist`; do
+				run rm -rf $prefix/$f
+			done
+			# Without || true, mv will not be executed if you are uninstalling your only remaining port.
+			grep -v "^$port " $prefix/packages.db > packages.dbtmp || true
+			mv packages.dbtmp $prefix/packages.db
+		else
+			>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
+		fi
 	else
-		>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
+		>&2 echo "Error: $port is not installed. Cannot uninstall."
 	fi
 }
 do_fetch() {
