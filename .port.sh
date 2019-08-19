@@ -141,7 +141,8 @@ uninstall() {
 		for f in `cat plist`; do
 			run rm -rf $prefix/$f
 		done
-		grep -v "^$port " $prefix/packages.db > packages.dbtmp
+		# Without || true, mv will not be executed if you are uninstalling your only remaining port.
+		grep -v "^$port " $prefix/packages.db > packages.dbtmp || true
 		mv packages.dbtmp $prefix/packages.db
 	else
 		>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
