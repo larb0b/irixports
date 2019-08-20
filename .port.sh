@@ -122,6 +122,10 @@ func_defined clean_all || clean_all() {
 	done
 }
 addtodb() {
+	if [ ! -f "$prefix"/packages.db ]; then
+		echo "Note: $prefix/packages.db does not exist. Creating."
+		touch "$prefix"/packages.db
+	fi
 	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
 		echo "Adding $port $version to database of installed ports!"
 		echo "$port $version" >> "$prefix"/packages.db
@@ -137,14 +141,14 @@ installdepends() {
 	done
 }
 uninstall() {
-	if grep "^$port " $prefix/packages.db; then
+	if grep "^$port " "$prefix"/packages.db; then
 		if [ -f plist ]; then
 			for f in `cat plist`; do
-				run rm -rf $prefix/$f
+				run rm -rf "$prefix"/$f
 			done
 			# Without || true, mv will not be executed if you are uninstalling your only remaining port.
-			grep -v "^$port " $prefix/packages.db > packages.dbtmp || true
-			mv packages.dbtmp $prefix/packages.db
+			grep -v "^$port " "$prefix"/packages.db > packages.dbtmp || true
+			mv packages.dbtmp "$prefix"/packages.db
 		else
 			>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
 		fi
