@@ -126,9 +126,9 @@ addtodb() {
 		echo "Note: $prefix/packages.db does not exist. Creating."
 		touch "$prefix"/packages.db
 	fi
-	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
+	if ! grep -E "^(auto|manual) $port $version" "$prefix"/packages.db > /dev/null; then
 		echo "Adding $port $version to database of installed ports!"
-		if [ "${1:-}" = "auto" ]; then
+		if [ "${1:-}" = "--auto" ]; then
 			echo "auto $port $version" >> "$prefix"/packages.db
 		else
 			echo "manual $port $version" >> "$prefix"/packages.db
@@ -140,7 +140,7 @@ addtodb() {
 installdepends() {
 	for depend in $depends; do
 		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
-			(cd "../$depend" && ./package.sh auto)
+			(cd "../$depend" && ./package.sh --auto)
 		fi
 	done
 }
@@ -180,7 +180,7 @@ do_build() {
 do_install() {
 	echo "Installing $port!"
 	install
-	addtodb
+	addtodb "${1:-}"
 }
 do_clean() {
 	echo "Cleaning workdir and .out files in $port!"
@@ -202,7 +202,7 @@ do_all() {
 	do_fetch
 	do_configure
 	do_build
-	do_install
+	do_install "${1:-}"
 }
 
 if [ -z "${1:-}" ]; then
@@ -212,8 +212,8 @@ else
 		fetch|configure|build|install|clean|clean_dist|clean_all|uninstall)
 			do_$1
 			;;
-		auto)
-			do_all
+		--auto)
+			do_all $1
 			;;
 		*)
 			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all, uninstall."
