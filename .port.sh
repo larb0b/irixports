@@ -151,7 +151,7 @@ installdepends() {
 	done
 }
 uninstall() {
-	if grep "^$port " "$prefix"/packages.db; then
+	if grep "^manual $port " "$prefix"/packages.db > /dev/null; then
 		if [ -f plist ]; then
 			for f in `cat plist`; do
 				run rm -rf "$prefix"/$f
