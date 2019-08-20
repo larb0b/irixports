@@ -128,7 +128,11 @@ addtodb() {
 	fi
 	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
 		echo "Adding $port $version to database of installed ports!"
-		echo "$port $version" >> "$prefix"/packages.db
+		if [ "${1:-}" = "auto" ]; then
+			echo "auto $port $version" >> "$prefix"/packages.db
+		else
+			echo "manual $port $version" >> "$prefix"/packages.db
+		fi
 	else
 		>&2 echo "Warning: $port $version already installed. Not adding to database of installed ports!"
 	fi
@@ -136,7 +140,7 @@ addtodb() {
 installdepends() {
 	for depend in $depends; do
 		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
-			(cd "../$depend" && ./package.sh)
+			(cd "../$depend" && ./package.sh auto)
 		fi
 	done
 }
@@ -194,16 +198,22 @@ do_uninstall() {
 	echo "Uninstalling $port!"
 	uninstall
 }
-
-if [ -z "${1:-}" ]; then
+do_all() {
 	do_fetch
 	do_configure
 	do_build
 	do_install
+}
+
+if [ -z "${1:-}" ]; then
+	do_all
 else
 	case "$1" in
 		fetch|configure|build|install|clean|clean_dist|clean_all|uninstall)
 			do_$1
+			;;
+		auto)
+			do_all
 			;;
 		*)
 			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all, uninstall."
