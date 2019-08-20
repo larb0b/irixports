@@ -132,12 +132,18 @@ addtodb() {
 			echo "auto $port $version" >> "$prefix"/packages.db
 		else
 			echo "manual $port $version" >> "$prefix"/packages.db
+			if [ ! -z "${dependlist:-}" ]; then
+				echo "dependency $port$dependlist" >> "$prefix/packages.db"
+			fi
 		fi
 	else
 		>&2 echo "Warning: $port $version already installed. Not adding to database of installed ports!"
 	fi
 }
 installdepends() {
+	for depend in $depends; do
+		dependlist="${dependlist:-} $depend"
+	done
 	for depend in $depends; do
 		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
 			(cd "../$depend" && ./package.sh --auto)
