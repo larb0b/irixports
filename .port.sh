@@ -154,7 +154,14 @@ uninstall() {
 	if grep "^manual $port " "$prefix"/packages.db > /dev/null; then
 		if [ -f plist ]; then
 			for f in `cat plist`; do
-				run rm -rf "$prefix"/$f
+				case $f in
+					*/)
+						run rmdir "$prefix"/$f || true
+						;;
+					*)
+						run rm -rf "$prefix"/$f
+						;;
+				esac
 			done
 			# Without || true, mv will not be executed if you are uninstalling your only remaining port.
 			grep -v "^$port " "$prefix"/packages.db > packages.dbtmp || true
