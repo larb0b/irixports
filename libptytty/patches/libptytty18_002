@@ -1,0 +1,22 @@
+--- a/src/fdpass.C	Sun Nov 16 06:22:34 CST 2014
++++ b/src/fdpass.C	Fri Aug 23 12:19:20 CDT 2019
+@@ -20,6 +20,10 @@
+  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+  *----------------------------------------------------------------------*/
+ 
++#ifdef __sgi
++#define _XOPEN_SOURCE
++#endif
++
+ #include "config.h"
+ 
+ #include <stddef.h> // needed by broken bsds for NULL used in sys/uio.h
+@@ -60,7 +64,7 @@
+   msg.msg_namelen    = 0;
+   msg.msg_iov        = &iov;
+   msg.msg_iovlen     = 1;
+-  msg.msg_control    = buf;
++  msg.msg_control    = (char*)buf;
+   msg.msg_controllen = CMSG_SPACE (sizeof (int));
+ 
+   cmsg = CMSG_FIRSTHDR (&msg);

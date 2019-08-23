@@ -1,0 +1,41 @@
+--- a/ptytty.m4	Mon May 11 17:24:03 CDT 2015
++++ b/ptytty.m4	Fri Aug 23 12:31:34 CDT 2019
+@@ -2,7 +2,7 @@
+ [AC_CACHE_CHECK(for a fallback location of $1, pt_cv_path_$1, [
+ if test "$cross_compiling" != yes; then
+   for file in $3; do
+-    if test -f "$file"; then
++    if test -e "$file"; then
+       pt_cv_path_$1=$file
+       break
+     fi
+@@ -204,6 +204,9 @@
+ 
+ AC_CACHE_CHECK(for unix-compliant filehandle passing ability, pt_cv_can_pass_fds,
+ [AC_LINK_IFELSE([AC_LANG_PROGRAM([[
++#ifdef __sgi
++#define _XOPEN_SOURCE
++#endif
+ #include <stddef.h> // broken bsds (is that redundant?) need this
+ #include <sys/types.h>
+ #include <sys/socket.h>
+@@ -210,8 +213,8 @@
+ #include <sys/uio.h>
+ ]], [[
+ {
+-  msghdr msg;
+-  iovec iov;
++  struct msghdr msg;
++  struct iovec iov;
+   char buf [100];
+   char data = 0;
+ 
+@@ -223,7 +226,7 @@
+   msg.msg_control    = buf;
+   msg.msg_controllen = sizeof buf;
+ 
+-  cmsghdr *cmsg = CMSG_FIRSTHDR (&msg);
++  struct cmsghdr *cmsg = CMSG_FIRSTHDR (&msg);
+   cmsg->cmsg_level = SOL_SOCKET;
+   cmsg->cmsg_type  = SCM_RIGHTS;
+   cmsg->cmsg_len   = 100;
