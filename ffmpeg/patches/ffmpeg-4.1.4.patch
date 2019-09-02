@@ -1,0 +1,303 @@
+# Patch by onre - esp@iki.fi 
+diff -ur ffmpeg-4.1.4/compat/cuda/ptx2c.sh ffmpeg-4.1.4-irix/compat/cuda/ptx2c.sh
+--- ffmpeg-4.1.4/compat/cuda/ptx2c.sh	2019-07-08 14:45:24.000000000 +0000
++++ ffmpeg-4.1.4-irix/compat/cuda/ptx2c.sh	2019-07-10 12:22:35.073373909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ # Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
+ #
+diff -ur ffmpeg-4.1.4/compat/windows/makedef ffmpeg-4.1.4-irix/compat/windows/makedef
+--- ffmpeg-4.1.4/compat/windows/makedef	2019-07-08 14:45:24.000000000 +0000
++++ ffmpeg-4.1.4-irix/compat/windows/makedef	2019-07-10 12:22:35.049616309 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ # Copyright (c) 2013, Derek Buitenhuis
+ #
+diff -ur ffmpeg-4.1.4/compat/windows/mslink ffmpeg-4.1.4-irix/compat/windows/mslink
+--- ffmpeg-4.1.4/compat/windows/mslink	2017-12-31 18:35:45.000000000 +0000
++++ ffmpeg-4.1.4-irix/compat/windows/mslink	2019-07-10 12:22:35.061185109 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ LINK_EXE_PATH=$(dirname "$(command -v cl)")/link
+ if [ -x "$LINK_EXE_PATH" ]; then
+diff -ur ffmpeg-4.1.4/configure ffmpeg-4.1.4-irix/configure
+--- ffmpeg-4.1.4/configure	2019-07-08 14:45:24.000000000 +0000
++++ ffmpeg-4.1.4-irix/configure	2019-07-10 12:22:35.308429909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ #
+ # FFmpeg configure script
+ #
+@@ -39,7 +39,7 @@
+     fi
+     if test "0$FF_CONF_EXEC" -lt 3; then
+         FF_CONF_EXEC=3
+-        try_exec /usr/xpg4/bin/sh "$0" "$@"
++        try_exec /opt/local/bin/bash "$0" "$@"
+     fi
+     echo "No compatible shell script interpreter found."
+     echo "This configure script requires a POSIX-compatible shell"
+@@ -4215,7 +4215,7 @@
+ 
+ # make sure we can execute files in $TMPDIR
+ cat > $TMPSH 2>> $logfile <<EOF
+-#! /bin/sh
++#! /opt/local/bin/bash
+ EOF
+ chmod +x $TMPSH >> $logfile 2>&1
+ if ! $TMPSH >> $logfile 2>&1; then
+diff -ur ffmpeg-4.1.4/doc/doxy-wrapper.sh ffmpeg-4.1.4-irix/doc/doxy-wrapper.sh
+--- ffmpeg-4.1.4/doc/doxy-wrapper.sh	2018-07-17 06:27:38.000000000 +0000
++++ ffmpeg-4.1.4-irix/doc/doxy-wrapper.sh	2019-07-10 12:22:35.037384309 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ OUT_DIR="${1}"
+ DOXYFILE="${2}"
+diff -ur ffmpeg-4.1.4/doc/faq.texi ffmpeg-4.1.4-irix/doc/faq.texi
+--- ffmpeg-4.1.4/doc/faq.texi	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/doc/faq.texi	2019-07-10 12:22:35.025643509 +0000
+@@ -135,7 +135,7 @@
+ @code{PKG_CONFIG_LIBDIR} set. That script can look like that:
+ 
+ @example
+-#!/bin/sh
++#!/usr/bin/env bash
+ PKG_CONFIG_LIBDIR=/path/to/cross/lib/pkgconfig
+ export PKG_CONFIG_LIBDIR
+ exec /usr/bin/pkg-config "$@@"
+diff -ur ffmpeg-4.1.4/doc/filters.texi ffmpeg-4.1.4-irix/doc/filters.texi
+--- ffmpeg-4.1.4/doc/filters.texi	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/doc/filters.texi	2019-07-10 12:22:34.992845909 +0000
+@@ -8717,7 +8717,7 @@
+ @item
+ Show text fading in and out (appearing/disappearing):
+ @example
+-#!/bin/sh
++#!/usr/bin/env bash
+ DS=1.0 # display start
+ DE=10.0 # display end
+ FID=1.5 # fade in duration
+diff -ur ffmpeg-4.1.4/doc/muxers.texi ffmpeg-4.1.4-irix/doc/muxers.texi
+--- ffmpeg-4.1.4/doc/muxers.texi	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/doc/muxers.texi	2019-07-10 12:22:35.011589109 +0000
+@@ -732,7 +732,7 @@
+ 
+ Example shell script:
+ @example
+-#!/bin/sh
++#!/usr/bin/env bash
+ BASE_URL=$@{1:-'.'@}
+ openssl rand 16 > file.key
+ echo $BASE_URL/file.key > file.keyinfo
+diff -ur ffmpeg-4.1.4/ffbuild/libversion.sh ffmpeg-4.1.4-irix/ffbuild/libversion.sh
+--- ffmpeg-4.1.4/ffbuild/libversion.sh	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/ffbuild/libversion.sh	2019-07-10 12:25:05.904632309 +0000
+@@ -1,3 +1,5 @@
++#!/usr/bin/env bash
++
+ toupper(){
+     echo "$@" | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ
+ }
+diff -ur ffmpeg-4.1.4/ffbuild/pkgconfig_generate.sh ffmpeg-4.1.4-irix/ffbuild/pkgconfig_generate.sh
+--- ffmpeg-4.1.4/ffbuild/pkgconfig_generate.sh	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/ffbuild/pkgconfig_generate.sh	2019-07-10 12:22:35.205516309 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ . ffbuild/config.sh
+ 
+diff -ur ffmpeg-4.1.4/ffbuild/version.sh ffmpeg-4.1.4-irix/ffbuild/version.sh
+--- ffmpeg-4.1.4/ffbuild/version.sh	2019-07-08 14:45:25.000000000 +0000
++++ ffmpeg-4.1.4-irix/ffbuild/version.sh	2019-07-10 12:22:35.193374709 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ # Usage: version.sh <ffmpeg-root-dir> <output-version.h> <extra-version>
+ 
+diff -ur ffmpeg-4.1.4/libavformat/network.h ffmpeg-4.1.4-irix/libavformat/network.h
+--- ffmpeg-4.1.4/libavformat/network.h	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/libavformat/network.h	2019-07-10 12:56:49.874944309 +0000
+@@ -56,11 +56,16 @@
+ 
+ int ff_neterrno(void);
+ #else
++#include <sys/bsd_types.h>
++#include <netinet/tcp.h>
+ #include <sys/types.h>
+ #include <sys/socket.h>
+-#include <netinet/in.h>
+-#include <netinet/tcp.h>
++#undef _NO_XOPEN4
++#undef _NO_XOPEN5
++#define _NO_XOPEN4 1
++#define _NO_XOPEN5 1
+ #include <netdb.h>
++#include <netinet/in.h>
+ 
+ #define ff_neterrno() AVERROR(errno)
+ #endif /* HAVE_WINSOCK2_H */
+@@ -130,7 +135,7 @@
+ #define MSG_NOSIGNAL 0
+ #endif
+ 
+-#if !HAVE_STRUCT_ADDRINFO
++#if !HAVE_STRUCT_ADDRINFO && 0
+ struct addrinfo {
+     int ai_flags;
+     int ai_family;
+diff -ur ffmpeg-4.1.4/libavutil/cpu.c ffmpeg-4.1.4-irix/libavutil/cpu.c
+--- ffmpeg-4.1.4/libavutil/cpu.c	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/libavutil/cpu.c	2019-07-10 13:23:10.482198709 +0000
+@@ -41,6 +41,7 @@
+ #include <sys/param.h>
+ #endif
+ #include <sys/types.h>
++#include <sys/bsd_types.h>
+ #include <sys/sysctl.h>
+ #endif
+ #if HAVE_UNISTD_H
+diff -ur ffmpeg-4.1.4/tests/copycooker.sh ffmpeg-4.1.4-irix/tests/copycooker.sh
+--- ffmpeg-4.1.4/tests/copycooker.sh	2016-03-28 22:25:33.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/copycooker.sh	2019-07-10 12:22:35.229977909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ LC_ALL=C
+ export LC_ALL
+diff -ur ffmpeg-4.1.4/tests/fate/source-check.sh ffmpeg-4.1.4-irix/tests/fate/source-check.sh
+--- ffmpeg-4.1.4/tests/fate/source-check.sh	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/fate/source-check.sh	2019-07-10 12:22:35.217852309 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ cd "$1"/..
+ 
+diff -ur ffmpeg-4.1.4/tests/fate-run.sh ffmpeg-4.1.4-irix/tests/fate-run.sh
+--- ffmpeg-4.1.4/tests/fate-run.sh	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/fate-run.sh	2019-07-10 12:22:35.266437909 +0000
+@@ -1,4 +1,4 @@
+-#! /bin/sh
++#! /opt/local/bin/bash
+ 
+ export LC_ALL=C
+ 
+diff -ur ffmpeg-4.1.4/tests/fate.sh ffmpeg-4.1.4-irix/tests/fate.sh
+--- ffmpeg-4.1.4/tests/fate.sh	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/fate.sh	2019-07-10 12:22:35.241657909 +0000
+@@ -1,4 +1,4 @@
+-#! /bin/sh
++#! /opt/local/bin/bash
+ 
+ config=$1
+ 
+diff -ur ffmpeg-4.1.4/tests/lavf-regression.sh ffmpeg-4.1.4-irix/tests/lavf-regression.sh
+--- ffmpeg-4.1.4/tests/lavf-regression.sh	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/lavf-regression.sh	2019-07-10 12:22:35.279477909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ #
+ # automatic regression test for libavformat
+ #
+diff -ur ffmpeg-4.1.4/tests/regression-funcs.sh ffmpeg-4.1.4-irix/tests/regression-funcs.sh
+--- ffmpeg-4.1.4/tests/regression-funcs.sh	2018-11-01 14:34:28.000000000 +0000
++++ ffmpeg-4.1.4-irix/tests/regression-funcs.sh	2019-07-10 12:22:35.253929109 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ #
+ # common regression functions for ffmpeg
+ #
+diff -ur ffmpeg-4.1.4/tools/bisect-create ffmpeg-4.1.4-irix/tools/bisect-create
+--- ffmpeg-4.1.4/tools/bisect-create	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/bisect-create	2019-07-10 12:22:35.109154709 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ set -e
+ 
+diff -ur ffmpeg-4.1.4/tools/cl2c ffmpeg-4.1.4-irix/tools/cl2c
+--- ffmpeg-4.1.4/tools/cl2c	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/cl2c	2019-07-10 12:22:35.133267509 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ # Convert an OpenCL source file into a C source file containing the
+ # OpenCL source as a C string.  Also adds a #line directive so that
+ # compiler messages are useful.
+diff -ur ffmpeg-4.1.4/tools/clean-diff ffmpeg-4.1.4-irix/tools/clean-diff
+--- ffmpeg-4.1.4/tools/clean-diff	2016-03-28 22:25:36.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/clean-diff	2019-07-10 12:22:35.181213909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ sed '/^+[^+]/!s/	/TaBBaT/g' |\
+  expand -t $(seq -s , 9 8 200) |\
+  sed 's/TaBBaT/	/g' |\
+diff -ur ffmpeg-4.1.4/tools/gen-rc ffmpeg-4.1.4-irix/tools/gen-rc
+--- ffmpeg-4.1.4/tools/gen-rc	2016-03-28 22:25:36.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/gen-rc	2019-07-10 12:22:35.121081909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ #
+ # Copyright (c) 2012 James Almer
+ # Copyright (c) 2013 Tiancheng "Timothy" Gu
+diff -ur ffmpeg-4.1.4/tools/libav-merge-next-commit ffmpeg-4.1.4-irix/tools/libav-merge-next-commit
+--- ffmpeg-4.1.4/tools/libav-merge-next-commit	2018-11-01 14:34:28.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/libav-merge-next-commit	2019-07-10 12:22:35.157577109 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ if [ "$1" != "merge" -a "$1" != "noop" ]; then
+     printf "Usage: $0 <merge|noop [REF_HASH]>\n"
+diff -ur ffmpeg-4.1.4/tools/missing_codec_desc ffmpeg-4.1.4-irix/tools/missing_codec_desc
+--- ffmpeg-4.1.4/tools/missing_codec_desc	2016-03-28 22:25:36.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/missing_codec_desc	2019-07-10 12:22:35.097212309 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ srcdir=${0%/*}/..
+ 
+diff -ur ffmpeg-4.1.4/tools/murge ffmpeg-4.1.4-irix/tools/murge
+--- ffmpeg-4.1.4/tools/murge	2018-11-01 14:34:28.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/murge	2019-07-10 12:22:35.169617909 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ grep -A99999 '^<<<<<<<' | grep -B99999 '^>>>>>>>' >murge.X
+ grep -A99999 '^====' murge.X | egrep -v '^(=======|<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)' >murge.theirs
+diff -ur ffmpeg-4.1.4/tools/patcheck ffmpeg-4.1.4-irix/tools/patcheck
+--- ffmpeg-4.1.4/tools/patcheck	2019-07-08 14:45:26.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/patcheck	2019-07-10 12:22:35.145382709 +0000
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ 
+ # if no argument provided, write stdin to a file and re-run the script
+ if [ $# = 0 ]; then
+diff -ur ffmpeg-4.1.4/tools/unwrap-diff ffmpeg-4.1.4-irix/tools/unwrap-diff
+--- ffmpeg-4.1.4/tools/unwrap-diff	2016-03-28 22:25:36.000000000 +0000
++++ ffmpeg-4.1.4-irix/tools/unwrap-diff	2019-07-10 12:22:35.084801909 +0000
+@@ -1,2 +1,2 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ tr '\n' '\001' | sed 's/\x01\x01/\x01 \x01/g' | sed 's/\x01\([^-+ @]\)/ \1/g' | tr '\001' '\n'
+
