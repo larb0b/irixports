@@ -1,0 +1,26 @@
+diff -Naur epm-4.4.orig/Makefile.in epm-4.4/Makefile.in
+--- epm-4.4.orig/Makefile.in	2019-07-28 16:31:45.793528954 +0000
++++ epm-4.4/Makefile.in	2019-07-28 16:47:16.418444954 +0000
+@@ -198,8 +198,8 @@
+ 	-$(MKDIR) $(docdir)
+ 	$(RM) $(docdir)/COPYING
+ 	$(CP) $(srcdir)/COPYING $(docdir)
+-	$(RM) $(docdir)/README
+-	$(CP) $(srcdir)/README $(docdir)
++	$(RM) $(docdir)/README.md
++	$(CP) $(srcdir)/README.md $(docdir)
+ 	$(RM) $(docdir)/epm-book.html
+ 	$(CP) $(srcdir)/doc/epm-book.html $(docdir)
+ 
+diff -Naur epm-4.4.orig/configure.ac epm-4.4/configure.ac
+--- epm-4.4.orig/configure.ac	2019-07-28 16:31:45.796220154 +0000
++++ epm-4.4/configure.ac	2019-07-28 16:46:54.964404154 +0000
+@@ -107,7 +107,7 @@
+ 
+ if test "$uname" = "IRIX"; then
+ 	if test `uname -r` = 6.5; then
+-		STRIP="$STRIP -f -s -k -l -h"
++		STRIP="$STRIP --strip-unneeded"
+ 	fi
+ fi
+ 

@@ -122,19 +122,56 @@ func_defined clean_all || clean_all() {
 	done
 }
 addtodb() {
-	if ! grep "$port $version" "$prefix"/packages.db > /dev/null; then
-		echo "Adding $port $version to database of installed packages!"
-		echo "$port $version" >> "$prefix"/packages.db
+	if [ ! -f "$prefix"/packages.db ]; then
+		echo "Note: $prefix/packages.db does not exist. Creating."
+		touch "$prefix"/packages.db
+	fi
+	if ! grep -E "^(auto|manual) $port $version" "$prefix"/packages.db > /dev/null; then
+		echo "Adding $port $version to database of installed ports!"
+		if [ "${1:-}" = "--auto" ]; then
+			echo "auto $port $version" >> "$prefix"/packages.db
+		else
+			echo "manual $port $version" >> "$prefix"/packages.db
+			if [ ! -z "${dependlist:-}" ]; then
+				echo "dependency $port$dependlist" >> "$prefix/packages.db"
+			fi
+		fi
 	else
-		>&2 echo "Warning: $port $version already installed. Not adding to database of installed packages!"
+		>&2 echo "Warning: $port $version already installed. Not adding to database of installed ports!"
 	fi
 }
 installdepends() {
 	for depend in $depends; do
+		dependlist="${dependlist:-} $depend"
+	done
+	for depend in $depends; do
 		if ! grep "$depend" "$prefix"/packages.db > /dev/null; then
-			(cd "../$depend" && ./package.sh)
+			(cd "../$depend" && ./package.sh --auto)
 		fi
 	done
+}
+uninstall() {
+	if grep "^manual $port " "$prefix"/packages.db > /dev/null; then
+		if [ -f plist ]; then
+			for f in `cat plist`; do
+				case $f in
+					*/)
+						run rmdir "$prefix"/$f || true
+						;;
+					*)
+						run rm -rf "$prefix"/$f
+						;;
+				esac
+			done
+			# Without || true, mv will not be executed if you are uninstalling your only remaining port.
+			grep -v "^manual $port " "$prefix"/packages.db > packages.dbtmp || true
+			mv packages.dbtmp "$prefix"/packages.db
+		else
+			>&2 echo "Error: This port does not have a plist yet. Cannot uninstall."
+		fi
+	else
+		>&2 echo "Error: $port is not installed. Cannot uninstall."
+	fi
 }
 do_fetch() {
 	installdepends
@@ -156,7 +193,7 @@ do_build() {
 do_install() {
 	echo "Installing $port!"
 	install
-	addtodb
+	addtodb "${1:-}"
 }
 do_clean() {
 	echo "Cleaning workdir and .out files in $port!"
@@ -170,19 +207,29 @@ do_clean_all() {
 	echo "Cleaning all in $port!"
 	clean_all
 }
-
-if [ -z "${1:-}" ]; then
+do_uninstall() {
+	echo "Uninstalling $port!"
+	uninstall
+}
+do_all() {
 	do_fetch
 	do_configure
 	do_build
-	do_install
+	do_install "${1:-}"
+}
+
+if [ -z "${1:-}" ]; then
+	do_all
 else
 	case "$1" in
-		fetch|configure|build|install|clean|clean_dist|clean_all)
+		fetch|configure|build|install|clean|clean_dist|clean_all|uninstall)
 			do_$1
 			;;
+		--auto)
+			do_all $1
+			;;
 		*)
-			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all."
+			>&2 echo "I don't understand $1! Supported arguments: fetch, configure, build, install, clean, clean_dist, clean_all, uninstall."
 			exit 1
 			;;
 	esac
