@@ -1,0 +1,24 @@
+diff -Naur unzip60.orig/unix/Makefile unzip60/unix/Makefile
+--- unzip60.orig/unix/Makefile	2009-01-18 14:41:18.000000000 +0000
++++ unzip60/unix/Makefile	2019-09-04 16:29:06.835398649 +0000
+@@ -121,7 +121,7 @@
+ INSTALL_D = mkdir -p
+ # on some systems, manext=l and MANDIR=/usr/man/man$(manext) may be appropriate
+ manext = 1
+-prefix = /usr/local
++prefix = $(PREFIX)
+ BINDIR = $(prefix)/bin#			where to install executables
+ MANDIR = $(prefix)/man/man$(manext)#	where to install man pages
+ INSTALLEDBIN = $(BINDIR)/funzip$E $(BINDIR)/unzip$E $(BINDIR)/unzipsfx$E \
+@@ -797,6 +797,11 @@
+ 	 AF="-DNO_UNDERLINE -Djecxz=jcxz -DALIGNMENT='.align 16' $(AF)"
+ 	$(STRIP) $(UNZIPS)
+ 
++# IRIX 6.5.x
++irix_gcc:	unix_make
++	$(MAKE) unzips CC=gcc LD=gcc CFLAGS="-O2 -DSYSV -DNO_LCHOWN -DNO_LCHMOD" LF2=""
++	$(STRIP) $(UNZIPS)
++
+ # "ISI machine (68025 CPU)" (based on e-mail from Rob White <rsw@tfs.com>;
+ # no further information).  May also need DIRENT defined.
+ isi:		unix_make
