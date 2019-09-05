@@ -9,4 +9,4 @@ files="https://gigenet.dl.sourceforge.net/project/infozip/UnZip%206.x%20%28lates
 build(){
 	runwd gmake -f unix/Makefile irix_gcc
 	runwd gmake MANDIR=$prefix/share/man/man1 -f unix/Makefile install PREFIX=$prefix $makeopts
-	 }
+}
