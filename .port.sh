@@ -9,7 +9,7 @@ PKG_CONFIG_PATH=
 . "$@"
 shift
 
-: "${makeopts:=-j$(sysconf | grep AVAIL_PROCESSORS | awk '{print $2}')}"
+: "${makeopts:=-j$(sysconf NPROC_ONLN)}"
 : "${installopts:=}"
 : "${compiler:=gcc}"
 : "${gccversion:=8.2.0}"
