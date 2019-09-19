@@ -37,4 +37,6 @@ inst -A -f /tmp/gnuchain
 ln -sf /opt/local/binutils-dev/bin /opt/local/gcc-8.2.0/mips-sgi-irix6.5/bin
 echo "Done! Removing temporary files."
 rm -r /tmp/gcc4 /tmp/gnuchain /optlocal.tar
-echo "When working with irixports, you should make sure that GCC's lib32 directory is in LD_LIBRARYN32_PATH. In a bourne-like shell, you can put something like export LD_LIBRARYN32_PATH=$LD_LIBRARYN32_PATH:/opt/local/gcc-4.7.4/lib32 in your profile."
+echo "When working with irixports, you should make sure that GCC's lib32 directory is in LD_LIBRARYN32_PATH. In a bourne-like shell, you can add something like this to your profile:"
+echo
+echo '    export LD_LIBRARYN32_PATH=$LD_LIBRARYN32_PATH:/opt/local/gcc-4.7.4/lib32'
