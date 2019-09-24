@@ -1,0 +1,2969 @@
+diff -Naur libuv-v1.30.1.orig/.gitignore libuv/.gitignore
+--- libuv-v1.30.1.orig/.gitignore	2019-07-02 10:55:03.000000000 +0000
++++ libuv/.gitignore	2019-09-24 19:35:30.722580938 +0000
+@@ -51,6 +51,7 @@
+ /test/run-benchmarks
+ /test/run-benchmarks.exe
+ /test/run-benchmarks.dSYM
++test_file_*
+ 
+ *.sln
+ *.sln.cache
+diff -Naur libuv-v1.30.1.orig/CMakeLists.txt libuv/CMakeLists.txt
+--- libuv-v1.30.1.orig/CMakeLists.txt	2019-07-02 10:55:03.000000000 +0000
++++ libuv/CMakeLists.txt	2019-09-24 19:35:30.727254538 +0000
+@@ -53,6 +53,8 @@
+     test/test-fs-poll.c
+     test/test-fs.c
+     test/test-fs-readdir.c
++    test/test-fs-fd-hash.c
++    test/test-fs-open-flags.c
+     test/test-get-currentexe.c
+     test/test-get-loadavg.c
+     test/test-get-memory.c
+diff -Naur libuv-v1.30.1.orig/ChangeLog libuv/ChangeLog
+--- libuv-v1.30.1.orig/ChangeLog	2019-07-02 10:55:03.000000000 +0000
++++ libuv/ChangeLog	2019-09-24 19:35:30.738345738 +0000
+@@ -1,4 +1,4 @@
+-2019.07.03, Version 1.30.1 (Stable)
++2019.07.03, Version 1.30.1 (Stable), 1551969c84c2f546a429dac169c7fdac3e38115e
+ 
+ Changes since version 1.30.0:
+ 
+diff -Naur libuv-v1.30.1.orig/Makefile.am libuv/Makefile.am
+--- libuv-v1.30.1.orig/Makefile.am	2019-07-02 10:55:03.000000000 +0000
++++ libuv/Makefile.am	2019-09-24 19:39:45.055080138 +0000
+@@ -184,6 +184,8 @@
+                          test/test-fs-poll.c \
+                          test/test-fs.c \
+                          test/test-fs-readdir.c \
++                         test/test-fs-fd-hash.c \
++                         test/test-fs-open-flags.c \
+                          test/test-fork.c \
+                          test/test-getters-setters.c \
+                          test/test-get-currentexe.c \
+@@ -322,6 +324,12 @@
+                          -D_LINUX_SOURCE_COMPAT
+ endif
+ 
++if IRIX
++test_run_tests_CFLAGS += -D_SGI_SOURCE \
++                         -D_REENTRANT_FUNCTIONS
++endif
++
++
+ if HAIKU
+ test_run_tests_CFLAGS += -D_BSD_SOURCE
+ endif
+@@ -362,6 +370,16 @@
+ libuv_la_SOURCES += src/unix/aix.c src/unix/aix-common.c
+ endif
+ 
++if IRIX
++libuv_la_CFLAGS += -D_SGI_SOURCE \
++                   -D_REENTRANT_FUNCTIONS
++uvinclude_HEADERS += include/uv/irix.h
++libuv_la_SOURCES += src/unix/irix.c \
++                    src/unix/posix-hrtime.c \
++                    src/unix/no-fsevents.c \
++                    src/unix/posix-poll.c
++endif
++
+ if ANDROID
+ uvinclude_HEADERS += include/uv/android-ifaddrs.h
+ libuv_la_SOURCES += src/unix/android-ifaddrs.c \
+diff -Naur libuv-v1.30.1.orig/configure.ac libuv/configure.ac
+--- libuv-v1.30.1.orig/configure.ac	2019-07-02 10:55:03.000000000 +0000
++++ libuv/configure.ac	2019-09-24 19:39:45.056284138 +0000
+@@ -51,6 +51,7 @@
+ AC_CHECK_LIB([socket], [socket])
+ AC_SYS_LARGEFILE
+ AM_CONDITIONAL([AIX],      [AS_CASE([$host_os],[aix*],          [true], [false])])
++AM_CONDITIONAL([IRIX],     [AS_CASE([$host_os],[irix*],         [true], [false])])
+ AM_CONDITIONAL([ANDROID],  [AS_CASE([$host_os],[linux-android*],[true], [false])])
+ AM_CONDITIONAL([CYGWIN],   [AS_CASE([$host_os],[cygwin*],       [true], [false])])
+ AM_CONDITIONAL([DARWIN],   [AS_CASE([$host_os],[darwin*],       [true], [false])])
+diff -Naur libuv-v1.30.1.orig/docs/src/fs.rst libuv/docs/src/fs.rst
+--- libuv-v1.30.1.orig/docs/src/fs.rst	2019-07-02 10:55:03.000000000 +0000
++++ libuv/docs/src/fs.rst	2019-09-24 19:35:30.777422538 +0000
+@@ -534,6 +534,14 @@
+ 
+     .. versionchanged:: 1.17.0 support is added for Windows.
+ 
++.. c:macro:: UV_FS_O_FILEMAP
++
++    Use a memory file mapping to access the file. When using this flag, the
++    file cannot be open multiple times concurrently.
++
++    .. note::
++        `UV_FS_O_FILEMAP` is only supported on Windows.
++
+ .. c:macro:: UV_FS_O_NOATIME
+ 
+     Do not update the file access time when the file is read.
+diff -Naur libuv-v1.30.1.orig/include/uv/irix.h libuv/include/uv/irix.h
+--- libuv-v1.30.1.orig/include/uv/irix.h	1969-12-31 19:00:00.000000000 +0000
++++ libuv/include/uv/irix.h	2019-09-24 19:39:45.056799338 +0000
+@@ -0,0 +1,28 @@
++#ifndef UV_IRIX_H
++#define UV_IRIX_H
++
++/* Pulling this from the system headers seems semi-impossible without
++ * breaking other things.
++ */
++#ifndef SCM_RIGHTS
++#define SCM_RIGHTS 0x01
++#endif
++
++/* This is functionally equivalent.
++ */
++
++#define CLOCK_MONOTONIC CLOCK_SGI_CYCLE
++
++int setenv(const char *name, const char *value, int o);
++int unsetenv(const char *name);
++char *mkdtemp(char *template);
++size_t strnlen(const char* str, size_t maxlen);
++
++#define UV_PLATFORM_LOOP_FIELDS                                               \
++  struct pollfd* poll_fds;                                                    \
++  size_t poll_fds_used;                                                       \
++  size_t poll_fds_size;                                                       \
++  unsigned char poll_fds_iterating;                                           \
++
++
++#endif /* UV_IRIX_H */
+diff -Naur libuv-v1.30.1.orig/include/uv/unix.h libuv/include/uv/unix.h
+--- libuv-v1.30.1.orig/include/uv/unix.h	2019-07-02 10:55:03.000000000 +0000
++++ libuv/include/uv/unix.h	2019-09-24 19:39:45.058650538 +0000
+@@ -27,9 +27,14 @@
+ #include <fcntl.h>
+ #include <dirent.h>
+ 
+-#include <sys/socket.h>
++#if defined(__sgi)
++#include <sys/bsd_types.h>
++#include <sys/filio.h>
++#endif
++
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
++#include <sys/socket.h>
+ #include <arpa/inet.h>
+ #include <netdb.h>  /* MAXHOSTNAMELEN on Solaris */
+ 
+@@ -55,6 +60,8 @@
+ # include "uv/sunos.h"
+ #elif defined(__APPLE__)
+ # include "uv/darwin.h"
++#elif defined(__sgi)
++# include "uv/irix.h"
+ #elif defined(__DragonFly__)       || \
+       defined(__FreeBSD__)         || \
+       defined(__FreeBSD_kernel__)  || \
+@@ -481,6 +488,7 @@
+ #endif
+ 
+ /* fs open() flags supported on other platforms: */
++#define UV_FS_O_FILEMAP       0
+ #define UV_FS_O_RANDOM        0
+ #define UV_FS_O_SHORT_LIVED   0
+ #define UV_FS_O_SEQUENTIAL    0
+diff -Naur libuv-v1.30.1.orig/include/uv/version.h libuv/include/uv/version.h
+--- libuv-v1.30.1.orig/include/uv/version.h	2019-07-02 10:55:03.000000000 +0000
++++ libuv/include/uv/version.h	2019-09-24 19:35:30.899979338 +0000
+@@ -32,9 +32,9 @@
+ 
+ #define UV_VERSION_MAJOR 1
+ #define UV_VERSION_MINOR 30
+-#define UV_VERSION_PATCH 1
+-#define UV_VERSION_IS_RELEASE 1
+-#define UV_VERSION_SUFFIX ""
++#define UV_VERSION_PATCH 2
++#define UV_VERSION_IS_RELEASE 0
++#define UV_VERSION_SUFFIX "dev"
+ 
+ #define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
+                          (UV_VERSION_MINOR <<  8) | \
+diff -Naur libuv-v1.30.1.orig/include/uv/win.h libuv/include/uv/win.h
+--- libuv-v1.30.1.orig/include/uv/win.h	2019-07-02 10:55:03.000000000 +0000
++++ libuv/include/uv/win.h	2019-09-24 19:35:30.901858538 +0000
+@@ -668,6 +668,7 @@
+ #define UV_FS_O_APPEND       _O_APPEND
+ #define UV_FS_O_CREAT        _O_CREAT
+ #define UV_FS_O_EXCL         _O_EXCL
++#define UV_FS_O_FILEMAP      0x20000000
+ #define UV_FS_O_RANDOM       _O_RANDOM
+ #define UV_FS_O_RDONLY       _O_RDONLY
+ #define UV_FS_O_RDWR         _O_RDWR
+diff -Naur libuv-v1.30.1.orig/src/unix/core.c libuv/src/unix/core.c
+--- libuv-v1.30.1.orig/src/unix/core.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/core.c	2019-09-24 19:39:45.062150538 +0000
+@@ -583,7 +583,6 @@
+   return 0;
+ }
+ 
+-
+ #if !defined(__CYGWIN__) && !defined(__MSYS__) && !defined(__HAIKU__)
+ int uv__cloexec_ioctl(int fd, int set) {
+   int r;
+diff -Naur libuv-v1.30.1.orig/src/unix/fs.c libuv/src/unix/fs.c
+--- libuv-v1.30.1.orig/src/unix/fs.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/fs.c	2019-09-24 19:39:45.071299338 +0000
+@@ -604,8 +604,14 @@
+ #else
+   ssize_t len;
+ 
++  /* On IRIX realpath() seems to cause a SEGV unless PATH_MAX bytes 
++   * have been allocated. */
++#ifdef __sgi
++  buf = uv__malloc(PATH_MAX + 1);
++#else
+   len = uv__fs_pathmax_size(req->path);
+   buf = uv__malloc(len + 1);
++#endif
+ 
+   if (buf == NULL) {
+     errno = ENOMEM;
+diff -Naur libuv-v1.30.1.orig/src/unix/irix.c libuv/src/unix/irix.c
+--- libuv-v1.30.1.orig/src/unix/irix.c	1969-12-31 19:00:00.000000000 +0000
++++ libuv/src/unix/irix.c	2019-09-24 19:39:45.072995338 +0000
+@@ -0,0 +1,485 @@
++/* Copyright libuv project contributors. All rights reserved.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to
++ * deal in the Software without restriction, including without limitation the
++ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ * sell copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
++
++#include "uv.h"
++#include "internal.h"
++
++#include <fcntl.h>
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/soioctl.h>
++#include <procfs/procfs.h>
++#include <stdio.h>
++#include <string.h>
++#include <stropts.h>
++#include <sys/ioctl.h>
++#include <sys/param.h>
++#include <sys/procfs.h>
++#include <sys/stat.h>
++#include <sys/sysget.h>
++#include <sys/sysinfo.h>
++#include <sys/sysmp.h>
++#include <sys/types.h>
++#include <time.h>
++#include <unistd.h>
++
++extern char** environ;
++
++static uv_mutex_t process_title_mutex;
++static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
++static void* args_mem = NULL;
++static char** process_argv = NULL;
++static int process_argc = 0;
++static char* process_title_ptr = NULL;
++
++/* Support functions for things missing from IRIX. */
++
++int setenv(const char *name, const char *value, int o) {
++    size_t len = strlen(name) + strlen(value) + 2;
++    char *s = malloc(len+1);
++    int ret;
++
++    snprintf(s, len, "%s=%s", name, value);
++    ret = putenv(s);
++    free(s);
++    return ret;
++}
++
++int unsetenv (const char *name) {
++  size_t len;
++  char **ep;
++
++  if (name == NULL || *name == '\0' || strchr (name, '=') != NULL)
++    return UV_EINVAL;
++
++  len = strlen (name);
++
++  ep = environ;
++  while (*ep != NULL)
++    if (!strncmp (*ep, name, len) && (*ep)[len] == '=') {
++      char **dp = ep;
++
++      do
++	dp[0] = dp[1];
++      while (*dp++);
++    } else { 
++      ++ep;
++    }
++
++  return 0;
++}
++
++
++char *mkdtemp(char *template) {
++    mkdir(mktemp(template), 0700);
++    return template;
++}
++
++size_t strnlen(const char* str, size_t maxlen) {
++  char* p = memchr(str, 0, maxlen);
++  if (p == NULL)
++    return maxlen;
++  else
++    return p - str;
++}
++
++/* Actual libuv functions. */
++
++uint64_t uv_get_free_memory(void) {
++  struct rminfo realmem;
++  long pagesize;
++    
++  if (sysmp(MP_SAGET, MPSA_RMINFO, &realmem, sizeof(realmem)) == -1) {
++    return 0;
++  }
++
++  pagesize = sysconf(_SC_PAGESIZE);
++  return (uint64_t) realmem.freemem * pagesize;
++}
++
++uint64_t uv_get_total_memory(void) {
++  struct rminfo realmem;
++  long pagesize;
++    
++  if (sysmp(MP_SAGET, MPSA_RMINFO, &realmem, sizeof(realmem)) == -1) {
++    return 0;
++  }
++
++  pagesize = sysconf(_SC_PAGESIZE);
++  return (uint64_t) realmem.physmem * pagesize;
++}
++
++uint64_t uv_get_constrained_memory(void) {
++  return 0;
++}
++
++void uv_loadavg(double avg[3]) {
++  int avenrun[3];
++    
++  static unsigned long avenrun_offset;
++  sgt_cookie_t cookie;
++
++  int i;
++    
++  if ((avenrun_offset = sysmp(MP_KERNADDR, MPKA_AVENRUN)) == -1) {
++    avg[0] = 0.; avg[1] = 0.; avg[2] = 0.;
++    return;
++  }
++
++  SGT_COOKIE_INIT(&cookie);
++  SGT_COOKIE_SET_KSYM(&cookie, "avenrun");
++    
++  if (sysget(SGT_KSYM, (char *)avenrun, sizeof(avenrun),
++	     SGT_READ, &cookie) != sizeof(avenrun)) {
++    avg[0] = 0.; avg[1] = 0.; avg[2] = 0.;
++    return;
++  }
++
++  for (i = 0; i < 3; i++) {
++    avg[i] = avenrun[i];
++    avg[i] /= 1024.0;
++  }
++}
++
++int uv_cpu_info(uv_cpu_info_t** cpu_infos, int*count) {
++  uv_cpu_info_t *cpu_info;
++  int result, ncpus, i = 0;
++  
++  ncpus = sysconf(_SC_NPROC_ONLN);
++  
++  *cpu_infos = (uv_cpu_info_t*) uv__malloc(ncpus * sizeof(uv_cpu_info_t));
++  if (!*cpu_infos) {
++    return UV_ENOMEM;
++  }
++
++  cpu_info = *cpu_infos;
++  while(i < ncpus) {
++    cpu_info->speed = 100;
++    cpu_info->model = "CPU";
++    cpu_info->cpu_times.user = 0;
++    cpu_info->cpu_times.sys = 0;
++    cpu_info->cpu_times.idle = 100;
++    cpu_info->cpu_times.irq = 0;
++    cpu_info->cpu_times.nice = 0;
++    cpu_info++;
++    i++;
++  }
++  return 0;
++}
++
++void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
++  int i;
++
++  for (i = 0; i < count; ++i) {
++    uv__free(cpu_infos[i].model);
++  }
++
++  uv__free(cpu_infos);
++}
++
++int uv_uptime(double* uptime) {
++  *uptime = 12345;
++  return 0;
++}
++
++int uv_resident_set_memory(size_t* rss) {
++  *rss = 1024*1024;
++  return 0;
++}
++
++int uv_exepath(char* buffer, size_t* size) {
++  char filename[50];
++  char abspath[PATH_MAX];
++  char firstarg[PATH_MAX];
++  size_t abspath_size;
++  int fd;
++
++  if (buffer == NULL || size == NULL || *size == 0)
++    return UV_EINVAL;
++
++  sprintf (filename, "/proc/pinfo/%d", (int) getpid ());
++  fd = open (filename, O_RDONLY);
++  if (0 <= fd) {
++    prpsinfo_t buf;
++    int ioctl_ok = 0 <= ioctl (fd, PIOCPSINFO, &buf);
++    close (fd);
++    if (ioctl_ok)
++      {
++	int offset = strchr(buf.pr_psargs, ' ') - buf.pr_psargs;
++	memcpy(firstarg, buf.pr_psargs, offset);
++	firstarg[offset] = '\0';
++
++	printf("%s\n", firstarg);
++	
++	if(!realpath(firstarg, abspath))
++	  return UV__ERR(errno);
++
++	abspath_size = strlen(abspath);
++
++	*size -= 1;
++	if (*size > abspath_size)
++	  *size = abspath_size;
++
++	memcpy(buffer, abspath, *size);
++	buffer[*size] = '\0';
++
++	return 0;
++      }
++  }
++  return UV__EINVAL;
++}
++
++/* Stuff below stolen from AIX.
++ */
++static void init_process_title_mutex_once(void) {
++  uv_mutex_init(&process_title_mutex);
++}
++
++char** uv_setup_args(int argc, char** argv) {
++  char** new_argv;
++  size_t size;
++  char* s;
++  int i;
++
++  if (argc <= 0)
++    return argv;
++
++  /* Save the original pointer to argv.
++   * AIX uses argv to read the process name.
++   * (Not the memory pointed to by argv[0..n] as on Linux.)
++   */
++  process_argv = argv;
++  process_argc = argc;
++
++  /* Calculate how much memory we need for the argv strings. */
++  size = 0;
++  for (i = 0; i < argc; i++)
++    size += strlen(argv[i]) + 1;
++
++  /* Add space for the argv pointers. */
++  size += (argc + 1) * sizeof(char*);
++
++  new_argv = uv__malloc(size);
++  if (new_argv == NULL)
++    return argv;
++  args_mem = new_argv;
++
++  /* Copy over the strings and set up the pointer table. */
++  s = (char*) &new_argv[argc + 1];
++  for (i = 0; i < argc; i++) {
++    size = strlen(argv[i]) + 1;
++    memcpy(s, argv[i], size);
++    new_argv[i] = s;
++    s += size;
++  }
++  new_argv[i] = NULL;
++
++  return new_argv;
++}
++
++int uv_set_process_title(const char* title) {
++  char* new_title;
++
++  /* We cannot free this pointer when libuv shuts down,
++   * the process may still be using it.
++   */
++  new_title = uv__strdup(title);
++  if (new_title == NULL)
++    return UV_ENOMEM;
++
++  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
++  uv_mutex_lock(&process_title_mutex);
++
++  /* If this is the first time this is set,
++   * don't free and set argv[1] to NULL.
++   */
++  if (process_title_ptr != NULL)
++    uv__free(process_title_ptr);
++
++  process_title_ptr = new_title;
++
++  process_argv[0] = process_title_ptr;
++  if (process_argc > 1)
++     process_argv[1] = NULL;
++
++  uv_mutex_unlock(&process_title_mutex);
++
++  return 0;
++}
++
++int uv_get_process_title(char* buffer, size_t size) {
++  size_t len;
++  if (buffer == NULL || size == 0)
++    return UV_EINVAL;
++
++  uv_once(&process_title_mutex_once, init_process_title_mutex_once);
++  uv_mutex_lock(&process_title_mutex);
++
++  len = strlen(process_argv[0]);
++  if (size <= len) {
++    uv_mutex_unlock(&process_title_mutex);
++    return UV_ENOBUFS;
++  }
++
++  memcpy(buffer, process_argv[0], len);
++  buffer[len] = '\0';
++
++  uv_mutex_unlock(&process_title_mutex);
++
++  return 0;
++}
++
++
++
++/* This may work.
++ */
++
++int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
++  uv_interface_address_t* address;
++  int sockfd, inet6, size = 1;
++  struct ifconf ifc;
++  struct ifreq *ifr, *p, flg;
++  struct sockaddr_dl* sa_addr;
++
++  *count = 0;
++  *addresses = NULL;
++
++  if (0 > (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))) {
++    return UV__ERR(errno);
++  }
++
++  /*  if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1) {
++    uv__close(sockfd);
++    return UV__ERR(errno);
++    } */
++
++  ifc.ifc_req = (struct ifreq*)uv__malloc(size);
++  ifc.ifc_len = size;
++  if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1) {
++    uv__close(sockfd);
++    return UV__ERR(errno);
++  }
++
++  /* #define ADDR_SIZE(p) MAX((p).sa_len, sizeof(p)) */
++#define ADDR_SIZE(p) sizeof(p)
++
++  /* Count all up and running ipv4/ipv6 addresses */
++  ifr = ifc.ifc_req;
++  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
++    p = ifr;
++    ifr = (struct ifreq*)
++      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
++
++    if (!(p->ifr_addr.sa_family == AF_INET6 ||
++          p->ifr_addr.sa_family == AF_INET))
++      continue;
++
++    memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
++    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
++      uv__close(sockfd);
++      return UV__ERR(errno);
++    }
++
++    if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
++      continue;
++
++    (*count)++;
++  }
++
++  if (*count == 0) {
++    uv__close(sockfd);
++    return 0;
++  }
++
++  /* Alloc the return interface structs */
++  *addresses = uv__malloc(*count * sizeof(uv_interface_address_t));
++  if (!(*addresses)) {
++    uv__close(sockfd);
++    return UV_ENOMEM;
++  }
++  address = *addresses;
++
++  ifr = ifc.ifc_req;
++  while ((char*)ifr < (char*)ifc.ifc_req + ifc.ifc_len) {
++    p = ifr;
++    ifr = (struct ifreq*)
++      ((char*)ifr + sizeof(ifr->ifr_name) + ADDR_SIZE(ifr->ifr_addr));
++
++    if (!(p->ifr_addr.sa_family == AF_INET6 ||
++          p->ifr_addr.sa_family == AF_INET))
++      continue;
++
++    inet6 = (p->ifr_addr.sa_family == AF_INET6);
++
++    memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
++    if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
++      uv__close(sockfd);
++      return UV_ENOSYS;
++    }
++
++    if (!(flg.ifr_flags & IFF_UP && flg.ifr_flags & IFF_RUNNING))
++      continue;
++
++    /* All conditions above must match count loop */
++
++    address->name = uv__strdup(p->ifr_name);
++
++    if (inet6)
++      address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
++    else
++      address->address.address4 = *((struct sockaddr_in*) &p->ifr_addr);
++
++    sa_addr = (struct sockaddr_dl*) &p->ifr_addr;
++    memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
++
++    if (ioctl(sockfd, SIOCGIFNETMASK, p) == -1) {
++      uv__close(sockfd);
++      return UV_ENOSYS;
++    }
++
++    if (inet6)
++      address->netmask.netmask6 = *((struct sockaddr_in6*) &p->ifr_addr);
++    else
++      address->netmask.netmask4 = *((struct sockaddr_in*) &p->ifr_addr);
++
++    address->is_internal = flg.ifr_flags & IFF_LOOPBACK ? 1 : 0;
++
++    address++;
++  }
++
++#undef ADDR_SIZE
++
++  uv__close(sockfd);
++  return 0;
++}
++
++
++void uv_free_interface_addresses(uv_interface_address_t* addresses,
++  int count) {
++  int i;
++
++  for (i = 0; i < count; ++i) {
++    uv__free(addresses[i].name);
++  }
++
++  uv__free(addresses);
++}
++
+diff -Naur libuv-v1.30.1.orig/src/unix/stream.c libuv/src/unix/stream.c
+--- libuv-v1.30.1.orig/src/unix/stream.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/stream.c	2019-09-24 19:39:45.077482538 +0000
+@@ -862,7 +862,9 @@
+     msg.msg_namelen = 0;
+     msg.msg_iov = iov;
+     msg.msg_iovlen = iovcnt;
++#if !defined(__sgi)
+     msg.msg_flags = 0;
++#endif
+ 
+     msg.msg_control = &scratch.alias;
+     msg.msg_controllen = CMSG_SPACE(sizeof(fd_to_send));
+@@ -1152,7 +1154,9 @@
+       while (nread < 0 && errno == EINTR);
+     } else {
+       /* ipc uses recvmsg */
++#if !defined(__sgi)
+       msg.msg_flags = 0;
++#endif
+       msg.msg_iov = (struct iovec*) &buf;
+       msg.msg_iovlen = 1;
+       msg.msg_name = NULL;
+diff -Naur libuv-v1.30.1.orig/src/unix/thread.c libuv/src/unix/thread.c
+--- libuv-v1.30.1.orig/src/unix/thread.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/thread.c	2019-09-24 19:39:45.079482538 +0000
+@@ -708,7 +708,7 @@
+   if (err)
+     return UV__ERR(err);
+ 
+-#if !(defined(__ANDROID_API__) && __ANDROID_API__ < 21)
++#if (!(defined(__ANDROID_API__) && __ANDROID_API__ < 21)) && !defined(__sgi)
+   err = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+   if (err)
+     goto error2;
+@@ -786,7 +786,7 @@
+ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
+   int r;
+   struct timespec ts;
+-#if defined(__MVS__)
++#if defined(__MVS__) || defined(__sgi)
+   struct timeval tv;
+ #endif
+ 
+@@ -795,7 +795,7 @@
+   ts.tv_nsec = timeout % NANOSEC;
+   r = pthread_cond_timedwait_relative_np(cond, mutex, &ts);
+ #else
+-#if defined(__MVS__)
++#if defined(__MVS__) || defined(__sgi)
+   if (gettimeofday(&tv, NULL))
+     abort();
+   timeout += tv.tv_sec * NANOSEC + tv.tv_usec * 1e3;
+diff -Naur libuv-v1.30.1.orig/src/unix/tty.c libuv/src/unix/tty.c
+--- libuv-v1.30.1.orig/src/unix/tty.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/tty.c	2019-09-24 19:39:45.080806538 +0000
+@@ -203,7 +203,7 @@
+ static void uv__tty_make_raw(struct termios* tio) {
+   assert(tio != NULL);
+ 
+-#if defined __sun || defined __MVS__
++#if defined __sun || defined __MVS__ || defined __sgi
+   /*
+    * This implementation of cfmakeraw for Solaris and derivatives is taken from
+    * http://www.perkin.org.uk/posts/solaris-portability-cfmakeraw.html.
+@@ -324,7 +324,7 @@
+       return UV_UDP;
+ 
+   if (type == SOCK_STREAM) {
+-#if defined(_AIX) || defined(__DragonFly__)
++#if defined(_AIX) || defined(__DragonFly__) || defined(__sgi)
+     /* on AIX/DragonFly the getsockname call returns an empty sa structure
+      * for sockets of type AF_UNIX.  For all other types it will
+      * return a properly filled in structure.
+diff -Naur libuv-v1.30.1.orig/src/unix/udp.c libuv/src/unix/udp.c
+--- libuv-v1.30.1.orig/src/unix/udp.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/unix/udp.c	2019-09-24 19:39:45.084527338 +0000
+@@ -200,8 +200,10 @@
+         addr = (const struct sockaddr*) &peer;
+ 
+       flags = 0;
++#if !defined(__sgi)
+       if (h.msg_flags & MSG_TRUNC)
+         flags |= UV_UDP_PARTIAL;
++#endif
+ 
+       handle->recv_cb(handle, nread, &buf, addr, flags);
+     }
+diff -Naur libuv-v1.30.1.orig/src/win/fs-fd-hash-inl.h libuv/src/win/fs-fd-hash-inl.h
+--- libuv-v1.30.1.orig/src/win/fs-fd-hash-inl.h	1969-12-31 19:00:00.000000000 +0000
++++ libuv/src/win/fs-fd-hash-inl.h	2019-09-24 19:35:31.029598538 +0000
+@@ -0,0 +1,178 @@
++#ifndef UV_WIN_FS_FD_HASH_INL_H_
++#define UV_WIN_FS_FD_HASH_INL_H_
++
++#include "uv.h"
++#include "internal.h"
++
++/* Files are only inserted in uv__fd_hash when the UV_FS_O_FILEMAP flag is
++ * specified. Thus, when uv__fd_hash_get returns true, the file mapping in the
++ * info structure should be used for read/write operations.
++ *
++ * If the file is empty, the mapping field will be set to
++ * INVALID_HANDLE_VALUE. This is not an issue since the file mapping needs to
++ * be created anyway when the file size changes.
++ *
++ * Since file descriptors are sequential integers, the modulo operator is used
++ * as hashing function. For each bucket, a single linked list of arrays is
++ * kept to minimize allocations. A statically allocated memory buffer is kept
++ * for the first array in each bucket. */
++
++
++#define UV__FD_HASH_SIZE 256
++#define UV__FD_HASH_GROUP_SIZE 16
++
++struct uv__fd_info_s {
++  int flags;
++  BOOLEAN is_directory;
++  HANDLE mapping;
++  LARGE_INTEGER size;
++  LARGE_INTEGER current_pos;
++};
++
++struct uv__fd_hash_entry_s {
++  uv_file fd;
++  struct uv__fd_info_s info;
++};
++
++struct uv__fd_hash_entry_group_s {
++  struct uv__fd_hash_entry_s entries[UV__FD_HASH_GROUP_SIZE];
++  struct uv__fd_hash_entry_group_s* next;
++};
++
++struct uv__fd_hash_bucket_s {
++  size_t size;
++  struct uv__fd_hash_entry_group_s* data;
++};
++
++
++static uv_mutex_t uv__fd_hash_mutex;
++
++static struct uv__fd_hash_entry_group_s
++  uv__fd_hash_entry_initial[UV__FD_HASH_SIZE * UV__FD_HASH_GROUP_SIZE];
++static struct uv__fd_hash_bucket_s uv__fd_hash[UV__FD_HASH_SIZE];
++
++
++INLINE static void uv__fd_hash_init(void) {
++  int i, err;
++
++  err = uv_mutex_init(&uv__fd_hash_mutex);
++  if (err) {
++    uv_fatal_error(err, "uv_mutex_init");
++  }
++
++  for (i = 0; i < ARRAY_SIZE(uv__fd_hash); ++i) {
++    uv__fd_hash[i].size = 0;
++    uv__fd_hash[i].data =
++        uv__fd_hash_entry_initial + i * UV__FD_HASH_GROUP_SIZE;
++  }
++}
++
++#define FIND_COMMON_VARIABLES                                                \
++  unsigned i;                                                                \
++  unsigned bucket = fd % ARRAY_SIZE(uv__fd_hash);                            \
++  struct uv__fd_hash_entry_s* entry_ptr = NULL;                              \
++  struct uv__fd_hash_entry_group_s* group_ptr;                               \
++  struct uv__fd_hash_bucket_s* bucket_ptr = &uv__fd_hash[bucket];
++
++#define FIND_IN_GROUP_PTR(group_size)                                        \
++  do {                                                                       \
++    for (i = 0; i < group_size; ++i) {                                       \
++      if (group_ptr->entries[i].fd == fd) {                                  \
++        entry_ptr = &group_ptr->entries[i];                                  \
++        break;                                                               \
++      }                                                                      \
++    }                                                                        \
++  } while (0)
++
++#define FIND_IN_BUCKET_PTR()                                                 \
++  do {                                                                       \
++    size_t first_group_size = bucket_ptr->size % UV__FD_HASH_GROUP_SIZE;     \
++    if (bucket_ptr->size != 0 && first_group_size == 0)                      \
++      first_group_size = UV__FD_HASH_GROUP_SIZE;                             \
++    group_ptr = bucket_ptr->data;                                            \
++    FIND_IN_GROUP_PTR(first_group_size);                                     \
++    for (group_ptr = group_ptr->next;                                        \
++         group_ptr != NULL && entry_ptr == NULL;                             \
++         group_ptr = group_ptr->next)                                        \
++      FIND_IN_GROUP_PTR(UV__FD_HASH_GROUP_SIZE);                             \
++  } while (0)
++
++INLINE static int uv__fd_hash_get(int fd, struct uv__fd_info_s* info) {
++  FIND_COMMON_VARIABLES
++
++  uv_mutex_lock(&uv__fd_hash_mutex);
++
++  FIND_IN_BUCKET_PTR();
++
++  if (entry_ptr != NULL) {
++    *info = entry_ptr->info;
++  }
++
++  uv_mutex_unlock(&uv__fd_hash_mutex);
++  return entry_ptr != NULL;
++}
++
++INLINE static void uv__fd_hash_add(int fd, struct uv__fd_info_s* info) {
++  FIND_COMMON_VARIABLES
++
++  uv_mutex_lock(&uv__fd_hash_mutex);
++
++  FIND_IN_BUCKET_PTR();
++
++  if (entry_ptr == NULL) {
++    i = bucket_ptr->size % UV__FD_HASH_GROUP_SIZE;
++
++    if (bucket_ptr->size != 0 && i == 0) {
++      struct uv__fd_hash_entry_group_s* new_group_ptr =
++        uv__malloc(sizeof(*new_group_ptr));
++      if (new_group_ptr == NULL) {
++        uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
++      }
++      new_group_ptr->next = bucket_ptr->data;
++      bucket_ptr->data = new_group_ptr;
++    }
++
++    bucket_ptr->size += 1;
++    entry_ptr = &bucket_ptr->data->entries[i];
++    entry_ptr->fd = fd;
++  }
++
++  entry_ptr->info = *info;
++
++  uv_mutex_unlock(&uv__fd_hash_mutex);
++}
++
++INLINE static int uv__fd_hash_remove(int fd, struct uv__fd_info_s* info) {
++  FIND_COMMON_VARIABLES
++
++  uv_mutex_lock(&uv__fd_hash_mutex);
++
++  FIND_IN_BUCKET_PTR();
++
++  if (entry_ptr != NULL) {
++    *info = entry_ptr->info;
++
++    bucket_ptr->size -= 1;
++
++    i = bucket_ptr->size % UV__FD_HASH_GROUP_SIZE;
++    if (entry_ptr != &bucket_ptr->data->entries[i]) {
++      *entry_ptr = bucket_ptr->data->entries[i];
++    }
++
++    if (bucket_ptr->size != 0 &&
++        bucket_ptr->size % UV__FD_HASH_GROUP_SIZE == 0) {
++      struct uv__fd_hash_entry_group_s* old_group_ptr = bucket_ptr->data;
++      bucket_ptr->data = old_group_ptr->next;
++      uv__free(old_group_ptr);
++    }
++  }
++
++  uv_mutex_unlock(&uv__fd_hash_mutex);
++  return entry_ptr != NULL;
++}
++
++#undef FIND_COMMON_VARIABLES
++#undef FIND_IN_GROUP_PTR
++#undef FIND_IN_BUCKET_PTR
++
++#endif /* UV_WIN_FS_FD_HASH_INL_H_ */
+diff -Naur libuv-v1.30.1.orig/src/win/fs.c libuv/src/win/fs.c
+--- libuv-v1.30.1.orig/src/win/fs.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/win/fs.c	2019-09-24 19:35:31.036848938 +0000
+@@ -34,6 +34,7 @@
+ #include "internal.h"
+ #include "req-inl.h"
+ #include "handle-inl.h"
++#include "fs-fd-hash-inl.h"
+ 
+ #include <wincrypt.h>
+ 
+@@ -126,6 +127,8 @@
+ #define IS_LETTER(c) (((c) >= L'a' && (c) <= L'z') || \
+   ((c) >= L'A' && (c) <= L'Z'))
+ 
++#define MIN(a,b) (((a) < (b)) ? (a) : (b))
++
+ const WCHAR JUNCTION_PREFIX[] = L"\\??\\";
+ const WCHAR JUNCTION_PREFIX_LEN = 4;
+ 
+@@ -137,8 +140,16 @@
+ 
+ static int uv__file_symlink_usermode_flag = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+ 
++static DWORD uv__allocation_granularity;
++
++
+ void uv_fs_init(void) {
+-  _fmode = _O_BINARY;
++  SYSTEM_INFO system_info;
++
++  GetSystemInfo(&system_info);
++  uv__allocation_granularity = system_info.dwAllocationGranularity;
++
++  uv__fd_hash_init();
+ }
+ 
+ 
+@@ -414,6 +425,27 @@
+   HANDLE file;
+   int fd, current_umask;
+   int flags = req->fs.info.file_flags;
++  struct uv__fd_info_s fd_info;
++
++  /* Adjust flags to be compatible with the memory file mapping. Save the
++   * original flags to emulate the correct behavior. */
++  if (flags & UV_FS_O_FILEMAP) {
++    fd_info.flags = flags;
++    fd_info.current_pos.QuadPart = 0;
++
++    if ((flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR)) ==
++        UV_FS_O_WRONLY) {
++      /* CreateFileMapping always needs read access */
++      flags = (flags & ~UV_FS_O_WRONLY) | UV_FS_O_RDWR;
++    }
++
++    if (flags & UV_FS_O_APPEND) {
++      /* Clear the append flag and ensure RDRW mode */
++      flags &= ~UV_FS_O_APPEND;
++      flags &= ~(UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
++      flags |= UV_FS_O_RDWR;
++    }
++  }
+ 
+   /* Obtain the active umask. umask() never fails and returns the previous
+    * umask. */
+@@ -444,7 +476,8 @@
+    * Here is where we deviate significantly from what CRT's _open()
+    * does. We indiscriminately use all the sharing modes, to match
+    * UNIX semantics. In particular, this ensures that the file can
+-   * be deleted even whilst it's open, fixing issue #1449.
++   * be deleted even whilst it's open, fixing issue
++   * https://github.com/nodejs/node-v0.x-archive/issues/1449.
+    * We still support exclusive sharing mode, since it is necessary
+    * for opening raw block devices, otherwise Windows will prevent
+    * any attempt to write past the master boot record.
+@@ -583,11 +616,55 @@
+     else if (GetLastError() != ERROR_SUCCESS)
+       SET_REQ_WIN32_ERROR(req, GetLastError());
+     else
+-      SET_REQ_WIN32_ERROR(req, UV_UNKNOWN);
++      SET_REQ_WIN32_ERROR(req, (DWORD) UV_UNKNOWN);
+     CloseHandle(file);
+     return;
+   }
+ 
++  if (flags & UV_FS_O_FILEMAP) {
++    FILE_STANDARD_INFO file_info;
++    if (!GetFileInformationByHandleEx(file,
++                                      FileStandardInfo,
++                                      &file_info,
++                                      sizeof file_info)) {
++      SET_REQ_WIN32_ERROR(req, GetLastError());
++      CloseHandle(file);
++      return;
++    }
++    fd_info.is_directory = file_info.Directory;
++
++    if (fd_info.is_directory) {
++      fd_info.size.QuadPart = 0;
++      fd_info.mapping = INVALID_HANDLE_VALUE;
++    } else {
++      if (!GetFileSizeEx(file, &fd_info.size)) {
++        SET_REQ_WIN32_ERROR(req, GetLastError());
++        CloseHandle(file);
++        return;
++      }
++
++      if (fd_info.size.QuadPart == 0) {
++        fd_info.mapping = INVALID_HANDLE_VALUE;
++      } else {
++        DWORD flProtect = (fd_info.flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY |
++          UV_FS_O_RDWR)) == UV_FS_O_RDONLY ? PAGE_READONLY : PAGE_READWRITE;
++        fd_info.mapping = CreateFileMapping(file,
++                                            NULL,
++                                            flProtect,
++                                            fd_info.size.HighPart,
++                                            fd_info.size.LowPart,
++                                            NULL);
++        if (fd_info.mapping == NULL) {
++          SET_REQ_WIN32_ERROR(req, GetLastError());
++          CloseHandle(file);
++          return;
++        }
++      }
++    }
++
++    uv__fd_hash_add(fd, &fd_info);
++  }
++
+   SET_REQ_RESULT(req, fd);
+   return;
+ 
+@@ -598,9 +675,16 @@
+ void fs__close(uv_fs_t* req) {
+   int fd = req->file.fd;
+   int result;
++  struct uv__fd_info_s fd_info;
+ 
+   VERIFY_FD(fd, req);
+ 
++  if (uv__fd_hash_remove(fd, &fd_info)) {
++    if (fd_info.mapping != INVALID_HANDLE_VALUE) {
++      CloseHandle(fd_info.mapping);
++    }
++  }
++
+   if (fd > 2)
+     result = _close(fd);
+   else
+@@ -618,6 +702,119 @@
+ }
+ 
+ 
++LONG fs__filemap_ex_filter(LONG excode, PEXCEPTION_POINTERS pep,
++                           int* perror) {
++  if (excode != EXCEPTION_IN_PAGE_ERROR) {
++    return EXCEPTION_CONTINUE_SEARCH;
++  }
++
++  assert(perror != NULL);
++  if (pep != NULL && pep->ExceptionRecord != NULL &&
++      pep->ExceptionRecord->NumberParameters >= 3) {
++    NTSTATUS status = (NTSTATUS)pep->ExceptionRecord->ExceptionInformation[3];
++    *perror = pRtlNtStatusToDosError(status);
++    if (*perror != ERROR_SUCCESS) {
++      return EXCEPTION_EXECUTE_HANDLER;
++    }
++  }
++  *perror = UV_UNKNOWN;
++  return EXCEPTION_EXECUTE_HANDLER;
++}
++
++
++void fs__read_filemap(uv_fs_t* req, struct uv__fd_info_s* fd_info) {
++  int fd = req->file.fd; /* VERIFY_FD done in fs__read */
++  int rw_flags = fd_info->flags &
++    (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
++  size_t read_size, done_read;
++  unsigned int index;
++  LARGE_INTEGER pos, end_pos;
++  size_t view_offset;
++  LARGE_INTEGER view_base;
++  void* view;
++
++  if (rw_flags == UV_FS_O_WRONLY) {
++    SET_REQ_WIN32_ERROR(req, ERROR_ACCESS_DENIED);
++    return;
++  }
++  if (fd_info->is_directory) {
++    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_FUNCTION);
++    return;
++  }
++
++  if (req->fs.info.offset == -1) {
++    pos = fd_info->current_pos;
++  } else {
++    pos.QuadPart = req->fs.info.offset;
++  }
++
++  /* Make sure we wont read past EOF. */
++  if (pos.QuadPart >= fd_info->size.QuadPart) {
++    SET_REQ_RESULT(req, 0);
++    return;
++  }
++
++  read_size = 0;
++  for (index = 0; index < req->fs.info.nbufs; ++index) {
++    read_size += req->fs.info.bufs[index].len;
++  }
++  read_size = (size_t) MIN((LONGLONG) read_size,
++                           fd_info->size.QuadPart - pos.QuadPart);
++  if (read_size == 0) {
++    SET_REQ_RESULT(req, 0);
++    return;
++  }
++
++  end_pos.QuadPart = pos.QuadPart + read_size;
++
++  view_offset = pos.QuadPart % uv__allocation_granularity;
++  view_base.QuadPart = pos.QuadPart - view_offset;
++  view = MapViewOfFile(fd_info->mapping,
++                       FILE_MAP_READ,
++                       view_base.HighPart,
++                       view_base.LowPart,
++                       view_offset + read_size);
++  if (view == NULL) {
++    SET_REQ_WIN32_ERROR(req, GetLastError());
++    return;
++  }
++
++  done_read = 0;
++  for (index = 0;
++       index < req->fs.info.nbufs && done_read < read_size;
++       ++index) {
++    int err = 0;
++    size_t this_read_size = MIN(req->fs.info.bufs[index].len,
++                                read_size - done_read);
++    __try {
++      memcpy(req->fs.info.bufs[index].base,
++             (char*)view + view_offset + done_read,
++             this_read_size);
++    }
++    __except (fs__filemap_ex_filter(GetExceptionCode(),
++                                    GetExceptionInformation(), &err)) {
++      SET_REQ_WIN32_ERROR(req, err);
++      UnmapViewOfFile(view);
++      return;
++    }
++    done_read += this_read_size;
++  }
++  assert(done_read == read_size);
++
++  if (!UnmapViewOfFile(view)) {
++    SET_REQ_WIN32_ERROR(req, GetLastError());
++    return;
++  }
++
++  if (req->fs.info.offset == -1) {
++    fd_info->current_pos = end_pos;
++    uv__fd_hash_add(fd, fd_info);
++  }
++
++  SET_REQ_RESULT(req, read_size);
++  return;
++}
++
+ void fs__read(uv_fs_t* req) {
+   int fd = req->file.fd;
+   int64_t offset = req->fs.info.offset;
+@@ -631,9 +828,15 @@
+   LARGE_INTEGER original_position;
+   LARGE_INTEGER zero_offset;
+   int restore_position;
++  struct uv__fd_info_s fd_info;
+ 
+   VERIFY_FD(fd, req);
+ 
++  if (uv__fd_hash_get(fd, &fd_info)) {
++    fs__read_filemap(req, &fd_info);
++    return;
++  }
++
+   zero_offset.QuadPart = 0;
+   restore_position = 0;
+   handle = uv__get_osfhandle(fd);
+@@ -690,6 +893,127 @@
+ }
+ 
+ 
++void fs__write_filemap(uv_fs_t* req, HANDLE file,
++                       struct uv__fd_info_s* fd_info) {
++  int fd = req->file.fd; /* VERIFY_FD done in fs__write */
++  int force_append = fd_info->flags & UV_FS_O_APPEND;
++  int rw_flags = fd_info->flags &
++    (UV_FS_O_RDONLY | UV_FS_O_WRONLY | UV_FS_O_RDWR);
++  size_t write_size, done_write;
++  unsigned int index;
++  LARGE_INTEGER zero, pos, end_pos;
++  size_t view_offset;
++  LARGE_INTEGER view_base;
++  void* view;
++  FILETIME ft;
++
++  if (rw_flags == UV_FS_O_RDONLY) {
++    SET_REQ_WIN32_ERROR(req, ERROR_ACCESS_DENIED);
++    return;
++  }
++  if (fd_info->is_directory) {
++    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_FUNCTION);
++    return;
++  }
++
++  write_size = 0;
++  for (index = 0; index < req->fs.info.nbufs; ++index) {
++    write_size += req->fs.info.bufs[index].len;
++  }
++
++  if (write_size == 0) {
++    SET_REQ_RESULT(req, 0);
++    return;
++  }
++
++  zero.QuadPart = 0;
++  if (force_append) {
++    pos = fd_info->size;
++  } else if (req->fs.info.offset == -1) {
++    pos = fd_info->current_pos;
++  } else {
++    pos.QuadPart = req->fs.info.offset;
++  }
++
++  end_pos.QuadPart = pos.QuadPart + write_size;
++
++  /* Recreate the mapping to enlarge the file if needed */
++  if (end_pos.QuadPart > fd_info->size.QuadPart) {
++    if (fd_info->mapping != INVALID_HANDLE_VALUE) {
++      CloseHandle(fd_info->mapping);
++    }
++
++    fd_info->mapping = CreateFileMapping(file,
++                                         NULL,
++                                         PAGE_READWRITE,
++                                         end_pos.HighPart,
++                                         end_pos.LowPart,
++                                         NULL);
++    if (fd_info->mapping == NULL) {
++      SET_REQ_WIN32_ERROR(req, GetLastError());
++      CloseHandle(file);
++      fd_info->mapping = INVALID_HANDLE_VALUE;
++      fd_info->size.QuadPart = 0;
++      fd_info->current_pos.QuadPart = 0;
++      uv__fd_hash_add(fd, fd_info);
++      return;
++    }
++
++    fd_info->size = end_pos;
++    uv__fd_hash_add(fd, fd_info);
++  }
++
++  view_offset = pos.QuadPart % uv__allocation_granularity;
++  view_base.QuadPart = pos.QuadPart - view_offset;
++  view = MapViewOfFile(fd_info->mapping,
++                       FILE_MAP_WRITE,
++                       view_base.HighPart,
++                       view_base.LowPart,
++                       view_offset + write_size);
++  if (view == NULL) {
++    SET_REQ_WIN32_ERROR(req, GetLastError());
++    return;
++  }
++
++  done_write = 0;
++  for (index = 0; index < req->fs.info.nbufs; ++index) {
++    int err = 0;
++    __try {
++      memcpy((char*)view + view_offset + done_write,
++             req->fs.info.bufs[index].base,
++             req->fs.info.bufs[index].len);
++    }
++    __except (fs__filemap_ex_filter(GetExceptionCode(),
++                                    GetExceptionInformation(), &err)) {
++      SET_REQ_WIN32_ERROR(req, err);
++      UnmapViewOfFile(view);
++      return;
++    }
++    done_write += req->fs.info.bufs[index].len;
++  }
++  assert(done_write == write_size);
++
++  if (!FlushViewOfFile(view, 0)) {
++    SET_REQ_WIN32_ERROR(req, GetLastError());
++    UnmapViewOfFile(view);
++    return;
++  }
++  if (!UnmapViewOfFile(view)) {
++    SET_REQ_WIN32_ERROR(req, GetLastError());
++    return;
++  }
++
++  if (req->fs.info.offset == -1) {
++    fd_info->current_pos = end_pos;
++    uv__fd_hash_add(fd, fd_info);
++  }
++
++  GetSystemTimeAsFileTime(&ft);
++  SetFileTime(file, NULL, NULL, &ft);
++
++  SET_REQ_RESULT(req, done_write);
++}
++
+ void fs__write(uv_fs_t* req) {
+   int fd = req->file.fd;
+   int64_t offset = req->fs.info.offset;
+@@ -702,6 +1026,7 @@
+   LARGE_INTEGER original_position;
+   LARGE_INTEGER zero_offset;
+   int restore_position;
++  struct uv__fd_info_s fd_info;
+ 
+   VERIFY_FD(fd, req);
+ 
+@@ -713,6 +1038,11 @@
+     return;
+   }
+ 
++  if (uv__fd_hash_get(fd, &fd_info)) {
++    fs__write_filemap(req, handle, &fd_info);
++    return;
++  }
++
+   if (offset != -1) {
+     memset(&overlapped, 0, sizeof overlapped);
+     overlapped_ptr = &overlapped;
+@@ -850,8 +1180,13 @@
+ 
+ void fs__mkdir(uv_fs_t* req) {
+   /* TODO: use req->mode. */
+-  int result = _wmkdir(req->file.pathw);
+-  SET_REQ_RESULT(req, result);
++  req->result = _wmkdir(req->file.pathw);
++  if (req->result == -1) {
++    req->sys_errno_ = _doserrno;
++    req->result = req->sys_errno_ == ERROR_INVALID_NAME
++                ? UV_EINVAL
++                : uv_translate_sys_error(req->sys_errno_);
++  }
+ }
+ 
+ 
+@@ -1536,6 +1871,7 @@
+ static void fs__ftruncate(uv_fs_t* req) {
+   int fd = req->file.fd;
+   HANDLE handle;
++  struct uv__fd_info_s fd_info = { 0 };
+   NTSTATUS status;
+   IO_STATUS_BLOCK io_status;
+   FILE_END_OF_FILE_INFORMATION eof_info;
+@@ -1544,6 +1880,17 @@
+ 
+   handle = uv__get_osfhandle(fd);
+ 
++  if (uv__fd_hash_get(fd, &fd_info)) {
++    if (fd_info.is_directory) {
++      SET_REQ_WIN32_ERROR(req, ERROR_ACCESS_DENIED);
++      return;
++    }
++
++    if (fd_info.mapping != INVALID_HANDLE_VALUE) {
++      CloseHandle(fd_info.mapping);
++    }
++  }
++
+   eof_info.EndOfFile.QuadPart = req->fs.info.offset;
+ 
+   status = pNtSetInformationFile(handle,
+@@ -1556,6 +1903,43 @@
+     SET_REQ_RESULT(req, 0);
+   } else {
+     SET_REQ_WIN32_ERROR(req, pRtlNtStatusToDosError(status));
++
++    if (fd_info.flags) {
++      CloseHandle(handle);
++      fd_info.mapping = INVALID_HANDLE_VALUE;
++      fd_info.size.QuadPart = 0;
++      fd_info.current_pos.QuadPart = 0;
++      uv__fd_hash_add(fd, &fd_info);
++      return;
++    }
++  }
++
++  if (fd_info.flags) {
++    fd_info.size = eof_info.EndOfFile;
++
++    if (fd_info.size.QuadPart == 0) {
++      fd_info.mapping = INVALID_HANDLE_VALUE;
++    } else {
++      DWORD flProtect = (fd_info.flags & (UV_FS_O_RDONLY | UV_FS_O_WRONLY |
++        UV_FS_O_RDWR)) == UV_FS_O_RDONLY ? PAGE_READONLY : PAGE_READWRITE;
++      fd_info.mapping = CreateFileMapping(handle,
++                                          NULL,
++                                          flProtect,
++                                          fd_info.size.HighPart,
++                                          fd_info.size.LowPart,
++                                          NULL);
++      if (fd_info.mapping == NULL) {
++        SET_REQ_WIN32_ERROR(req, GetLastError());
++        CloseHandle(handle);
++        fd_info.mapping = INVALID_HANDLE_VALUE;
++        fd_info.size.QuadPart = 0;
++        fd_info.current_pos.QuadPart = 0;
++        uv__fd_hash_add(fd, &fd_info);
++        return;
++      }
++    }
++
++    uv__fd_hash_add(fd, &fd_info);
+   }
+ }
+ 
+diff -Naur libuv-v1.30.1.orig/src/win/tty.c libuv/src/win/tty.c
+--- libuv-v1.30.1.orig/src/win/tty.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/win/tty.c	2019-09-24 19:35:31.072249738 +0000
+@@ -2280,6 +2280,8 @@
+ 
+ static DWORD WINAPI uv__tty_console_resize_message_loop_thread(void* param) {
+   CONSOLE_SCREEN_BUFFER_INFO sb_info;
++  NTSTATUS status;
++  ULONG_PTR conhost_pid;
+   MSG msg;
+ 
+   if (!GetConsoleScreenBufferInfo(uv__tty_console_handle, &sb_info))
+@@ -2288,14 +2290,29 @@
+   uv__tty_console_width = sb_info.dwSize.X;
+   uv__tty_console_height = sb_info.srWindow.Bottom - sb_info.srWindow.Top + 1;
+ 
+-  if (pSetWinEventHook == NULL)
++  if (pSetWinEventHook == NULL || pNtQueryInformationProcess == NULL)
+     return 0;
+ 
++  status = pNtQueryInformationProcess(GetCurrentProcess(),
++                                      ProcessConsoleHostProcess,
++                                      &conhost_pid,
++                                      sizeof(conhost_pid),
++                                      NULL);
++
++  if (!NT_SUCCESS(status))
++    /* We couldn't retrieve our console host process, probably because this
++     * is a 32-bit process running on 64-bit Windows. Fall back to receiving
++     * console events from all processes. */
++    conhost_pid = 0;
++
++  /* Ensure the PID is a multiple of 4, which is required by SetWinEventHook */
++  conhost_pid &= ~(ULONG_PTR)0x3;
++
+   if (!pSetWinEventHook(EVENT_CONSOLE_LAYOUT,
+                         EVENT_CONSOLE_LAYOUT,
+                         NULL,
+                         uv__tty_console_resize_event,
+-                        0,
++                        (DWORD)conhost_pid,
+                         0,
+                         WINEVENT_OUTOFCONTEXT))
+     return 0;
+diff -Naur libuv-v1.30.1.orig/src/win/util.c libuv/src/win/util.c
+--- libuv-v1.30.1.orig/src/win/util.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/win/util.c	2019-09-24 19:35:31.076976938 +0000
+@@ -1171,18 +1171,18 @@
+ 
+ 
+ int uv_os_tmpdir(char* buffer, size_t* size) {
+-  wchar_t path[MAX_PATH + 1];
++  wchar_t path[MAX_PATH + 2];
+   DWORD bufsize;
+   size_t len;
+ 
+   if (buffer == NULL || size == NULL || *size == 0)
+     return UV_EINVAL;
+ 
+-  len = GetTempPathW(MAX_PATH + 1, path);
++  len = GetTempPathW(ARRAY_SIZE(path), path);
+ 
+   if (len == 0) {
+     return uv_translate_sys_error(GetLastError());
+-  } else if (len > MAX_PATH + 1) {
++  } else if (len > ARRAY_SIZE(path)) {
+     /* This should not be possible */
+     return UV_EIO;
+   }
+diff -Naur libuv-v1.30.1.orig/src/win/winapi.c libuv/src/win/winapi.c
+--- libuv-v1.30.1.orig/src/win/winapi.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/win/winapi.c	2019-09-24 19:35:31.077788938 +0000
+@@ -34,6 +34,7 @@
+ sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+ sNtQueryDirectoryFile pNtQueryDirectoryFile;
+ sNtQuerySystemInformation pNtQuerySystemInformation;
++sNtQueryInformationProcess pNtQueryInformationProcess;
+ 
+ /* Kernel32 function pointers */
+ sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
+@@ -106,6 +107,13 @@
+     uv_fatal_error(GetLastError(), "GetProcAddress");
+   }
+ 
++  pNtQueryInformationProcess = (sNtQueryInformationProcess) GetProcAddress(
++      ntdll_module,
++      "NtQueryInformationProcess");
++  if (pNtQueryInformationProcess == NULL) {
++    uv_fatal_error(GetLastError(), "GetProcAddress");
++  }
++
+   kernel32_module = GetModuleHandleA("kernel32.dll");
+   if (kernel32_module == NULL) {
+     uv_fatal_error(GetLastError(), "GetModuleHandleA");
+diff -Naur libuv-v1.30.1.orig/src/win/winapi.h libuv/src/win/winapi.h
+--- libuv-v1.30.1.orig/src/win/winapi.h	2019-07-02 10:55:03.000000000 +0000
++++ libuv/src/win/winapi.h	2019-09-24 19:35:31.086361738 +0000
+@@ -4436,6 +4436,10 @@
+ # define SystemProcessorPerformanceInformation 8
+ #endif
+ 
++#ifndef ProcessConsoleHostProcess
++# define ProcessConsoleHostProcess 49
++#endif
++
+ #ifndef FILE_DEVICE_FILE_SYSTEM
+ # define FILE_DEVICE_FILE_SYSTEM 0x00000009
+ #endif
+@@ -4578,6 +4582,13 @@
+                   BOOLEAN RestartScan
+                 );
+ 
++typedef NTSTATUS (NTAPI *sNtQueryInformationProcess)
++                 (HANDLE ProcessHandle,
++                  UINT ProcessInformationClass,
++                  PVOID ProcessInformation,
++                  ULONG Length,
++                  PULONG ReturnLength);
++
+ /*
+  * Kernel32 headers
+  */
+@@ -4718,6 +4729,7 @@
+ extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
+ extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
+ extern sNtQuerySystemInformation pNtQuerySystemInformation;
++extern sNtQueryInformationProcess pNtQueryInformationProcess;
+ 
+ /* Kernel32 function pointers */
+ extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
+diff -Naur libuv-v1.30.1.orig/test/runner-unix.c libuv/test/runner-unix.c
+--- libuv-v1.30.1.orig/test/runner-unix.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/runner-unix.c	2019-09-24 19:39:45.086197738 +0000
+@@ -40,6 +40,25 @@
+ #include <sys/time.h>
+ #include <pthread.h>
+ 
++#ifdef __sgi
++int
++setenv(const char *name, const char *value, int o)
++{
++    size_t len = strlen(name) + strlen(value) + 2;
++    char *s = malloc(len+1);
++    int ret;
++
++    snprintf(s, len, "%s=%s", name, value);
++    ret = putenv(s);
++    free(s);
++    return ret;
++}
++
++#define unsetenv(x) setenv(x, "", 1)
++
++
++#endif
++
+ extern char** environ;
+ 
+ static void closefd(int fd) {
+diff -Naur libuv-v1.30.1.orig/test/runner-win.c libuv/test/runner-win.c
+--- libuv-v1.30.1.orig/test/runner-win.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/runner-win.c	2019-09-24 19:35:31.110263338 +0000
+@@ -55,6 +55,7 @@
+   _setmode(0, _O_BINARY);
+   _setmode(1, _O_BINARY);
+   _setmode(2, _O_BINARY);
++  _set_fmode(_O_BINARY);
+ 
+   /* Disable stdio output buffering. */
+   setvbuf(stdout, NULL, _IONBF, 0);
+diff -Naur libuv-v1.30.1.orig/test/test-fs-fd-hash.c libuv/test/test-fs-fd-hash.c
+--- libuv-v1.30.1.orig/test/test-fs-fd-hash.c	1969-12-31 19:00:00.000000000 +0000
++++ libuv/test/test-fs-fd-hash.c	2019-09-24 19:35:31.135048938 +0000
+@@ -0,0 +1,133 @@
++/* Copyright libuv project contributors. All rights reserved.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to
++ * deal in the Software without restriction, including without limitation the
++ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ * sell copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
++
++#if defined(_WIN32) && !defined(USING_UV_SHARED)
++
++#include "uv.h"
++#include "task.h"
++
++#include "../src/win/fs-fd-hash-inl.h"
++
++
++#define HASH_MAX 1000000000
++#define HASH_INC (1000 * UV__FD_HASH_SIZE + 2)
++#define BUCKET_MAX (UV__FD_HASH_SIZE * UV__FD_HASH_GROUP_SIZE * 10)
++#define BUCKET_INC UV__FD_HASH_SIZE
++#define FD_DIFF 9
++
++
++void assert_nonexistent(int fd) {
++  struct uv__fd_info_s info = { 0 };
++  ASSERT(!uv__fd_hash_get(fd, &info));
++  ASSERT(!uv__fd_hash_remove(fd, &info));
++}
++
++void assert_existent(int fd) {
++  struct uv__fd_info_s info = { 0 };
++  ASSERT(uv__fd_hash_get(fd, &info));
++  ASSERT(info.flags == fd + FD_DIFF);
++}
++
++void assert_insertion(int fd) {
++  struct uv__fd_info_s info = { 0 };
++  assert_nonexistent(fd);
++  info.flags = fd + FD_DIFF;
++  uv__fd_hash_add(fd, &info);
++  assert_existent(fd);
++}
++
++void assert_removal(int fd) {
++  struct uv__fd_info_s info = { 0 };
++  assert_existent(fd);
++  uv__fd_hash_remove(fd, &info);
++  ASSERT(info.flags == fd + FD_DIFF);
++  assert_nonexistent(fd);
++}
++
++
++/* Run a function for a set of values up to a very high number */
++#define RUN_HASH(function)                                                   \
++  do {                                                                       \
++    for (fd = 0; fd < HASH_MAX; fd += HASH_INC) {                            \
++      function(fd);                                                          \
++    }                                                                        \
++  } while (0)
++
++/* Run a function for a set of values that will cause many collisions */
++#define RUN_COLLISIONS(function)                                             \
++  do {                                                                       \
++    for (fd = 1; fd < BUCKET_MAX; fd += BUCKET_INC) {                        \
++      function(fd);                                                          \
++    }                                                                        \
++  } while (0)
++
++
++TEST_IMPL(fs_fd_hash) {
++  int fd;
++
++  uv__fd_hash_init();
++
++  /* Empty table */
++  RUN_HASH(assert_nonexistent);
++  RUN_COLLISIONS(assert_nonexistent);
++
++  /* Fill up */
++  RUN_HASH(assert_insertion);
++  RUN_COLLISIONS(assert_insertion);
++
++  /* Full */
++  RUN_HASH(assert_existent);
++  RUN_COLLISIONS(assert_existent);
++
++  /* Update */
++  {
++    struct uv__fd_info_s info = { 0 };
++    info.flags = FD_DIFF + FD_DIFF;
++    uv__fd_hash_add(0, &info);
++  }
++  {
++    struct uv__fd_info_s info = { 0 };
++    ASSERT(uv__fd_hash_get(0, &info));
++    ASSERT(info.flags == FD_DIFF + FD_DIFF);
++  }
++  {
++    /* Leave as it was, will be again tested below */
++    struct uv__fd_info_s info = { 0 };
++    info.flags = FD_DIFF;
++    uv__fd_hash_add(0, &info);
++  }
++
++  /* Remove all */
++  RUN_HASH(assert_removal);
++  RUN_COLLISIONS(assert_removal);
++
++  /* Empty table */
++  RUN_HASH(assert_nonexistent);
++  RUN_COLLISIONS(assert_nonexistent);
++  
++  return 0;
++}
++
++#else
++
++typedef int file_has_no_tests;  /* ISO C forbids an empty translation unit. */
++
++#endif  /* ifndef _WIN32 */
+diff -Naur libuv-v1.30.1.orig/test/test-fs-open-flags.c libuv/test/test-fs-open-flags.c
+--- libuv-v1.30.1.orig/test/test-fs-open-flags.c	1969-12-31 19:00:00.000000000 +0000
++++ libuv/test/test-fs-open-flags.c	2019-09-24 19:35:31.135992938 +0000
+@@ -0,0 +1,435 @@
++/* Copyright libuv project contributors. All rights reserved.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a copy
++ * of this software and associated documentation files (the "Software"), to
++ * deal in the Software without restriction, including without limitation the
++ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
++ * sell copies of the Software, and to permit persons to whom the Software is
++ * furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
++
++#ifdef _WIN32
++
++#include "uv.h"
++#include "task.h"
++
++#if defined(__unix__) || defined(__POSIX__) || \
++    defined(__APPLE__) || defined(__sun) || \
++    defined(_AIX) || defined(__MVS__) || \
++    defined(__HAIKU__)
++# include <unistd.h> /* unlink, rmdir */
++#else
++# include <direct.h>
++# define rmdir _rmdir
++# define unlink _unlink
++#endif
++
++static int flags;
++
++static uv_fs_t close_req;
++static uv_fs_t mkdir_req;
++static uv_fs_t open_req;
++static uv_fs_t read_req;
++static uv_fs_t rmdir_req;
++static uv_fs_t unlink_req;
++static uv_fs_t write_req;
++
++static char buf[32];
++static uv_buf_t iov;
++
++/* Opening the same file multiple times quickly can cause uv_fs_open to fail
++ * with EBUSY, so append an identifier to the file name for each operation */
++static int sid = 0;
++
++#define FILE_NAME_SIZE 128
++static char absent_file[FILE_NAME_SIZE];
++static char empty_file[FILE_NAME_SIZE];
++static char dummy_file[FILE_NAME_SIZE];
++static char empty_dir[] = "empty_dir";
++
++static void setup() {
++  int r;
++
++  /* empty_dir */
++  r = uv_fs_rmdir(NULL, &rmdir_req, empty_dir, NULL);
++  ASSERT(r == 0 || r == UV_ENOENT);
++  ASSERT(rmdir_req.result == 0 || rmdir_req.result == UV_ENOENT);
++  uv_fs_req_cleanup(&rmdir_req);
++
++  r = uv_fs_mkdir(NULL, &mkdir_req, empty_dir, 0755, NULL);
++  ASSERT(r == 0);
++  ASSERT(mkdir_req.result == 0);
++  uv_fs_req_cleanup(&mkdir_req);
++}
++
++static void refresh() {
++  int r;
++
++  /* absent_file */
++  sprintf(absent_file, "test_file_%d", sid++);
++
++  r = uv_fs_unlink(NULL, &unlink_req, absent_file, NULL);
++  ASSERT(r == 0 || r == UV_ENOENT);
++  ASSERT(unlink_req.result == 0 || unlink_req.result == UV_ENOENT);
++  uv_fs_req_cleanup(&unlink_req);
++
++  /* empty_file */
++  sprintf(empty_file, "test_file_%d", sid++);
++
++  r = uv_fs_open(NULL, &open_req, empty_file,
++    UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req.result >= 0);
++  uv_fs_req_cleanup(&open_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  /* dummy_file */
++  sprintf(dummy_file, "test_file_%d", sid++);
++
++  r = uv_fs_open(NULL, &open_req, dummy_file,
++    UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req.result >= 0);
++  uv_fs_req_cleanup(&open_req);
++
++  iov = uv_buf_init("a", 1);
++  r = uv_fs_write(NULL, &write_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == 1);
++  ASSERT(write_req.result == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++}
++
++static void cleanup() {
++  unlink(absent_file);
++  unlink(empty_file);
++  unlink(dummy_file);
++}
++
++static void openFail(char *file, int error) {
++  int r;
++
++  refresh();
++
++  r = uv_fs_open(NULL, &open_req, file, flags, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r == error);
++  ASSERT(open_req.result == error);
++  uv_fs_req_cleanup(&open_req);
++
++  /* Ensure the first call does not create the file */
++  r = uv_fs_open(NULL, &open_req, file, flags, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r == error);
++  ASSERT(open_req.result == error);
++  uv_fs_req_cleanup(&open_req);
++
++  cleanup();
++}
++
++static void refreshOpen(char *file) {
++  int r;
++
++  refresh();
++
++  r = uv_fs_open(NULL, &open_req, file, flags, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req.result >= 0);
++  uv_fs_req_cleanup(&open_req);
++}
++
++static void writeExpect(char *file, char *expected, int size) {
++  int r;
++
++  refreshOpen(file);
++
++  iov = uv_buf_init("b", 1);
++  r = uv_fs_write(NULL, &write_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == 1);
++  ASSERT(write_req.result == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  iov = uv_buf_init("c", 1);
++  r = uv_fs_write(NULL, &write_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == 1);
++  ASSERT(write_req.result == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  /* Check contents */
++  r = uv_fs_open(NULL, &open_req, file, UV_FS_O_RDONLY, S_IWUSR | S_IRUSR, NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req.result >= 0);
++  uv_fs_req_cleanup(&open_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == size);
++  ASSERT(read_req.result == size);
++  ASSERT(strncmp(buf, expected, size) == 0);
++  uv_fs_req_cleanup(&read_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  cleanup();
++}
++
++static void writeFail(char *file, int error) {
++  int r;
++
++  refreshOpen(file);
++
++  iov = uv_buf_init("z", 1);
++  r = uv_fs_write(NULL, &write_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == error);
++  ASSERT(write_req.result == error);
++  uv_fs_req_cleanup(&write_req);
++
++  iov = uv_buf_init("z", 1);
++  r = uv_fs_write(NULL, &write_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == error);
++  ASSERT(write_req.result == error);
++  uv_fs_req_cleanup(&write_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  cleanup();
++}
++
++static void readExpect(char *file, char *expected, int size) {
++  int r;
++
++  refreshOpen(file);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == size);
++  ASSERT(read_req.result == size);
++  ASSERT(strncmp(buf, expected, size) == 0);
++  uv_fs_req_cleanup(&read_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  cleanup();
++}
++
++static void readFail(char *file, int error) {
++  int r;
++
++  refreshOpen(file);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == error);
++  ASSERT(read_req.result == error);
++  uv_fs_req_cleanup(&read_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req.result, &iov, 1, -1, NULL);
++  ASSERT(r == error);
++  ASSERT(read_req.result == error);
++  uv_fs_req_cleanup(&read_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  cleanup();
++}
++
++static void fs_open_flags(int add_flags) {
++  /* Follow the order from
++   * https://github.com/nodejs/node/blob/1a96abe849/lib/internal/fs/utils.js#L329-L354
++   */
++
++  /* r */
++  flags = add_flags | UV_FS_O_RDONLY;
++  openFail(absent_file, UV_ENOENT);
++  writeFail(empty_file, UV_EPERM);
++  readExpect(empty_file, "", 0);
++  writeFail(dummy_file, UV_EPERM);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EPERM);
++  readFail(empty_dir, UV_EISDIR);
++
++  /* rs */
++  flags = add_flags | UV_FS_O_RDONLY | UV_FS_O_SYNC;
++  openFail(absent_file, UV_ENOENT);
++  writeFail(empty_file, UV_EPERM);
++  readExpect(empty_file, "", 0);
++  writeFail(dummy_file, UV_EPERM);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EPERM);
++  readFail(empty_dir, UV_EISDIR);
++
++  /* r+ */
++  flags = add_flags | UV_FS_O_RDWR;
++  openFail(absent_file, UV_ENOENT);
++  writeExpect(empty_file, "bc", 2);
++  readExpect(empty_file, "", 0);
++  writeExpect(dummy_file, "bc", 2);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EISDIR);
++
++  /* rs+ */
++  flags = add_flags | UV_FS_O_RDWR | UV_FS_O_SYNC;
++  openFail(absent_file, UV_ENOENT);
++  writeExpect(empty_file, "bc", 2);
++  readExpect(empty_file, "", 0);
++  writeExpect(dummy_file, "bc", 2);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EISDIR);
++
++  /* w */
++  flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY;
++  writeExpect(absent_file, "bc", 2);
++  readFail(absent_file, UV_EPERM);
++  writeExpect(empty_file, "bc", 2);
++  readFail(empty_file, UV_EPERM);
++  writeExpect(dummy_file, "bc", 2);
++  readFail(dummy_file, UV_EPERM);
++  openFail(empty_dir, UV_EISDIR);
++
++  /* wx */
++  flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY |
++    UV_FS_O_EXCL;
++  writeExpect(absent_file, "bc", 2);
++  readFail(absent_file, UV_EPERM);
++  openFail(empty_file, UV_EEXIST);
++  openFail(dummy_file, UV_EEXIST);
++  openFail(empty_dir, UV_EEXIST);
++
++  /* w+ */
++  flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_RDWR;
++  writeExpect(absent_file, "bc", 2);
++  readExpect(absent_file, "", 0);
++  writeExpect(empty_file, "bc", 2);
++  readExpect(empty_file, "", 0);
++  writeExpect(dummy_file, "bc", 2);
++  readExpect(dummy_file, "", 0);
++  openFail(empty_dir, UV_EISDIR);
++
++  /* wx+ */
++  flags = add_flags | UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_RDWR |
++    UV_FS_O_EXCL;
++  writeExpect(absent_file, "bc", 2);
++  readExpect(absent_file, "", 0);
++  openFail(empty_file, UV_EEXIST);
++  openFail(dummy_file, UV_EEXIST);
++  openFail(empty_dir, UV_EEXIST);
++
++  /* a */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY;
++  writeExpect(absent_file, "bc", 2);
++  readFail(absent_file, UV_EPERM);
++  writeExpect(empty_file, "bc", 2);
++  readFail(empty_file, UV_EPERM);
++  writeExpect(dummy_file, "abc", 3);
++  readFail(dummy_file, UV_EPERM);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EPERM);
++
++  /* ax */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY |
++    UV_FS_O_EXCL;
++  writeExpect(absent_file, "bc", 2);
++  readFail(absent_file, UV_EPERM);
++  openFail(empty_file, UV_EEXIST);
++  openFail(dummy_file, UV_EEXIST);
++  openFail(empty_dir, UV_EEXIST);
++
++  /* as */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_WRONLY |
++    UV_FS_O_SYNC;
++  writeExpect(absent_file, "bc", 2);
++  readFail(absent_file, UV_EPERM);
++  writeExpect(empty_file, "bc", 2);
++  readFail(empty_file, UV_EPERM);
++  writeExpect(dummy_file, "abc", 3);
++  readFail(dummy_file, UV_EPERM);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EPERM);
++
++  /* a+ */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_RDWR;
++  writeExpect(absent_file, "bc", 2);
++  readExpect(absent_file, "", 0);
++  writeExpect(empty_file, "bc", 2);
++  readExpect(empty_file, "", 0);
++  writeExpect(dummy_file, "abc", 3);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EISDIR);
++
++  /* ax+ */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_RDWR |
++    UV_FS_O_EXCL;
++  writeExpect(absent_file, "bc", 2);
++  readExpect(absent_file, "", 0);
++  openFail(empty_file, UV_EEXIST);
++  openFail(dummy_file, UV_EEXIST);
++  openFail(empty_dir, UV_EEXIST);
++
++  /* as+ */
++  flags = add_flags | UV_FS_O_APPEND | UV_FS_O_CREAT | UV_FS_O_RDWR |
++    UV_FS_O_SYNC;
++  writeExpect(absent_file, "bc", 2);
++  readExpect(absent_file, "", 0);
++  writeExpect(empty_file, "bc", 2);
++  readExpect(empty_file, "", 0);
++  writeExpect(dummy_file, "abc", 3);
++  readExpect(dummy_file, "a", 1);
++  writeFail(empty_dir, UV_EISDIR);
++  readFail(empty_dir, UV_EISDIR);
++}
++TEST_IMPL(fs_open_flags) {
++  setup();
++
++  fs_open_flags(0);
++  fs_open_flags(UV_FS_O_FILEMAP);
++
++  /* Cleanup. */
++  rmdir(empty_dir);
++
++  MAKE_VALGRIND_HAPPY();
++  return 0;
++}
++
++#else
++
++typedef int file_has_no_tests;  /* ISO C forbids an empty translation unit. */
++
++#endif  /* ifndef _WIN32 */
+diff -Naur libuv-v1.30.1.orig/test/test-fs.c libuv/test/test-fs.c
+--- libuv-v1.30.1.orig/test/test-fs.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-fs.c	2019-09-24 19:39:45.092947338 +0000
+@@ -847,7 +847,7 @@
+ }
+ 
+ 
+-TEST_IMPL(fs_file_sync) {
++static void fs_file_sync(int add_flags) {
+   int r;
+ 
+   /* Setup. */
+@@ -856,8 +856,8 @@
+ 
+   loop = uv_default_loop();
+ 
+-  r = uv_fs_open(loop, &open_req1, "test_file", O_WRONLY | O_CREAT,
+-      S_IWUSR | S_IRUSR, NULL);
++  r = uv_fs_open(loop, &open_req1, "test_file",
++      O_WRONLY | O_CREAT | add_flags, S_IWUSR | S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -873,7 +873,7 @@
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDWR, 0, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDWR | add_flags, 0, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -900,7 +900,8 @@
+   ASSERT(rename_req.result == 0);
+   uv_fs_req_cleanup(&rename_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file2", O_RDONLY, 0, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file2", O_RDONLY | add_flags, 0,
++      NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -926,13 +927,17 @@
+   /* Cleanup */
+   unlink("test_file");
+   unlink("test_file2");
++}
++TEST_IMPL(fs_file_sync) {
++  fs_file_sync(0);
++  fs_file_sync(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+ }
+ 
+ 
+-TEST_IMPL(fs_file_write_null_buffer) {
++static void fs_file_write_null_buffer(int add_flags) {
+   int r;
+ 
+   /* Setup. */
+@@ -940,8 +945,8 @@
+ 
+   loop = uv_default_loop();
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_WRONLY | O_CREAT,
+-      S_IWUSR | S_IRUSR, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file",
++      O_WRONLY | O_CREAT | add_flags, S_IWUSR | S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -958,6 +963,10 @@
+   uv_fs_req_cleanup(&close_req);
+ 
+   unlink("test_file");
++}
++TEST_IMPL(fs_file_write_null_buffer) {
++  fs_file_write_null_buffer(0);
++  fs_file_write_null_buffer(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+@@ -1470,7 +1479,7 @@
+   uv_run(loop, UV_RUN_DEFAULT);
+   ASSERT(fchmod_cb_count == 1);
+ 
+-  close(file);
++  uv_fs_close(loop, &req, file, NULL);
+ 
+   /*
+    * Run the loop just to check we don't have make any extraneous uv_ref()
+@@ -1513,7 +1522,7 @@
+   ASSERT(req.result == sizeof(test_buf));
+   uv_fs_req_cleanup(&req);
+ 
+-  close(file);
++  uv_fs_close(loop, &req, file, NULL);
+ 
+   /* Make the file read-only */
+   r = uv_fs_chmod(NULL, &req, "test_file", 0400, NULL);
+@@ -1572,7 +1581,7 @@
+   ASSERT(req.result == sizeof(test_buf));
+   uv_fs_req_cleanup(&req);
+ 
+-  close(file);
++  uv_fs_close(loop, &req, file, NULL);
+ 
+   /* Make the file read-only and clear archive flag */
+   r = SetFileAttributes("test_file", FILE_ATTRIBUTE_READONLY);
+@@ -1639,7 +1648,7 @@
+   uv_run(loop, UV_RUN_DEFAULT);
+   ASSERT(chown_cb_count == 1);
+ 
+-#ifndef __MVS__
++#if !defined(__MVS__) && !defined(__sgi)
+   /* chown to root (fail) */
+   chown_cb_count = 0;
+   r = uv_fs_chown(loop, &req, "test_file", 0, 0, chown_root_cb);
+@@ -1722,7 +1731,7 @@
+   ASSERT(req.result == sizeof(test_buf));
+   uv_fs_req_cleanup(&req);
+ 
+-  close(file);
++  uv_fs_close(loop, &req, file, NULL);
+ 
+   /* sync link */
+   r = uv_fs_link(NULL, &req, "test_file", "test_file_link", NULL);
+@@ -1764,7 +1773,7 @@
+   ASSERT(req.result >= 0);
+   ASSERT(strcmp(buf, test_buf) == 0);
+ 
+-  close(link);
++  uv_fs_close(loop, &req, link, NULL);
+ 
+   /*
+    * Run the loop just to check we don't have make any extraneous uv_ref()
+@@ -1871,7 +1880,7 @@
+   ASSERT(req.result == sizeof(test_buf));
+   uv_fs_req_cleanup(&req);
+ 
+-  close(file);
++  uv_fs_close(loop, &req, file, NULL);
+ 
+   /* sync symlink */
+   r = uv_fs_symlink(NULL, &req, "test_file", "test_file_symlink", 0, NULL);
+@@ -1909,7 +1918,7 @@
+   ASSERT(req.result >= 0);
+   ASSERT(strcmp(buf, test_buf) == 0);
+ 
+-  close(link);
++  uv_fs_close(loop, &req, link, NULL);
+ 
+   r = uv_fs_symlink(NULL,
+                     &req,
+@@ -1971,7 +1980,7 @@
+   ASSERT(req.result >= 0);
+   ASSERT(strcmp(buf, test_buf) == 0);
+ 
+-  close(link);
++  uv_fs_close(loop, &req, link, NULL);
+ 
+   r = uv_fs_symlink(NULL,
+                     &req,
+@@ -2293,7 +2302,7 @@
+   ASSERT(r >= 0);
+   ASSERT(req.result >= 0);
+   uv_fs_req_cleanup(&req);
+-  close(r);
++  uv_fs_close(loop, &req, r, NULL);
+ 
+   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
+ 
+@@ -2380,6 +2389,9 @@
+ #if defined(_AIX) && !defined(_AIX71)
+   RETURN_SKIP("futime is not implemented for AIX versions below 7.1");
+ #endif
++#if defined(__sgi)
++  RETURN_SKIP("futime is not implemented for IRIX");
++#endif
+ 
+   /* Setup. */
+   loop = uv_default_loop();
+@@ -2388,7 +2400,7 @@
+   ASSERT(r >= 0);
+   ASSERT(req.result >= 0);
+   uv_fs_req_cleanup(&req);
+-  close(r);
++  uv_fs_close(loop, &req, r, NULL);
+ 
+   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
+ 
+@@ -2583,7 +2595,7 @@
+ }
+ 
+ 
+-TEST_IMPL(fs_file_open_append) {
++static void fs_file_open_append(int add_flags) {
+   int r;
+ 
+   /* Setup. */
+@@ -2591,8 +2603,8 @@
+ 
+   loop = uv_default_loop();
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_WRONLY | O_CREAT,
+-      S_IWUSR | S_IRUSR, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file",
++      O_WRONLY | O_CREAT | add_flags, S_IWUSR | S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2608,7 +2620,8 @@
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDWR | O_APPEND, 0, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file",
++      O_RDWR | O_APPEND | add_flags, 0, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2624,7 +2637,8 @@
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY, S_IRUSR, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY | add_flags,
++      S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2646,6 +2660,10 @@
+ 
+   /* Cleanup */
+   unlink("test_file");
++}
++TEST_IMPL(fs_file_open_append) {
++  fs_file_open_append(0);
++  fs_file_open_append(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+@@ -2721,13 +2739,13 @@
+ }
+ 
+ 
+-TEST_IMPL(fs_read_bufs) {
++static void fs_read_bufs(int add_flags) {
+   char scratch[768];
+   uv_buf_t bufs[4];
+ 
+   ASSERT(0 <= uv_fs_open(NULL, &open_req1,
+                          "test/fixtures/lorem_ipsum.txt",
+-                         O_RDONLY, 0, NULL));
++                         O_RDONLY | add_flags, 0, NULL));
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+ 
+@@ -2769,13 +2787,17 @@
+   ASSERT(0 == uv_fs_close(NULL, &close_req, open_req1.result, NULL));
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
++}
++TEST_IMPL(fs_read_bufs) {
++  fs_read_bufs(0);
++  fs_read_bufs(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+ }
+ 
+ 
+-TEST_IMPL(fs_read_file_eof) {
++static void fs_read_file_eof(int add_flags) {
+ #if defined(__CYGWIN__) || defined(__MSYS__)
+   RETURN_SKIP("Cygwin pread at EOF may (incorrectly) return data!");
+ #endif
+@@ -2786,8 +2808,8 @@
+ 
+   loop = uv_default_loop();
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_WRONLY | O_CREAT,
+-      S_IWUSR | S_IRUSR, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file",
++      O_WRONLY | O_CREAT | add_flags, S_IWUSR | S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2803,7 +2825,8 @@
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY, 0, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY | add_flags, 0,
++      NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2830,13 +2853,17 @@
+ 
+   /* Cleanup */
+   unlink("test_file");
++}
++TEST_IMPL(fs_read_file_eof) {
++  fs_read_file_eof(0);
++  fs_read_file_eof(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+ }
+ 
+ 
+-TEST_IMPL(fs_write_multiple_bufs) {
++static void fs_write_multiple_bufs(int add_flags) {
+   uv_buf_t iovs[2];
+   int r;
+ 
+@@ -2845,8 +2872,8 @@
+ 
+   loop = uv_default_loop();
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_WRONLY | O_CREAT,
+-      S_IWUSR | S_IRUSR, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file",
++      O_WRONLY | O_CREAT | add_flags, S_IWUSR | S_IRUSR, NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2863,7 +2890,8 @@
+   ASSERT(close_req.result == 0);
+   uv_fs_req_cleanup(&close_req);
+ 
+-  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY, 0, NULL);
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY | add_flags, 0,
++      NULL);
+   ASSERT(r >= 0);
+   ASSERT(open_req1.result >= 0);
+   uv_fs_req_cleanup(&open_req1);
+@@ -2919,13 +2947,17 @@
+ 
+   /* Cleanup */
+   unlink("test_file");
++}
++TEST_IMPL(fs_write_multiple_bufs) {
++  fs_write_multiple_bufs(0);
++  fs_write_multiple_bufs(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+ }
+ 
+ 
+-TEST_IMPL(fs_write_alotof_bufs) {
++static void fs_write_alotof_bufs(int add_flags) {
+   size_t iovcount;
+   size_t iovmax;
+   uv_buf_t* iovs;
+@@ -2947,7 +2979,7 @@
+   r = uv_fs_open(NULL,
+                  &open_req1,
+                  "test_file",
+-                 O_RDWR | O_CREAT,
++                 O_RDWR | O_CREAT | add_flags,
+                  S_IWUSR | S_IRUSR,
+                  NULL);
+   ASSERT(r >= 0);
+@@ -2976,7 +3008,17 @@
+     iovs[index] = uv_buf_init(buffer + index * sizeof(test_buf),
+                               sizeof(test_buf));
+ 
+-  ASSERT(lseek(open_req1.result, 0, SEEK_SET) == 0);
++  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
++  ASSERT(r == 0);
++  ASSERT(close_req.result == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY | add_flags, 0,
++    NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req1.result >= 0);
++  uv_fs_req_cleanup(&open_req1);
++
+   r = uv_fs_read(NULL, &read_req, open_req1.result, iovs, iovcount, -1, NULL);
+   if (iovcount > iovmax)
+     iovcount = iovmax;
+@@ -3012,13 +3054,17 @@
+   /* Cleanup */
+   unlink("test_file");
+   free(iovs);
++}
++TEST_IMPL(fs_write_alotof_bufs) {
++  fs_write_alotof_bufs(0);
++  fs_write_alotof_bufs(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+ }
+ 
+ 
+-TEST_IMPL(fs_write_alotof_bufs_with_offset) {
++static void fs_write_alotof_bufs_with_offset(int add_flags) {
+   size_t iovcount;
+   size_t iovmax;
+   uv_buf_t* iovs;
+@@ -3045,7 +3091,7 @@
+   r = uv_fs_open(NULL,
+                  &open_req1,
+                  "test_file",
+-                 O_RDWR | O_CREAT,
++                 O_RDWR | O_CREAT | add_flags,
+                  S_IWUSR | S_IRUSR,
+                  NULL);
+   ASSERT(r >= 0);
+@@ -3124,6 +3170,10 @@
+   /* Cleanup */
+   unlink("test_file");
+   free(iovs);
++}
++TEST_IMPL(fs_write_alotof_bufs_with_offset) {
++  fs_write_alotof_bufs_with_offset(0);
++  fs_write_alotof_bufs_with_offset(UV_FS_O_FILEMAP);
+ 
+   MAKE_VALGRIND_HAPPY();
+   return 0;
+@@ -3539,6 +3589,146 @@
+   return 0;
+ }
+ 
++#ifdef _WIN32
++static void fs_file_pos_common() {
++  int r;
++
++  iov = uv_buf_init("abc", 3);
++  r = uv_fs_write(NULL, &write_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 3);
++  uv_fs_req_cleanup(&write_req);
++
++  /* Read with offset should not change the position */
++  iov = uv_buf_init(buf, 1);
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, 1, NULL);
++  ASSERT(r == 1);
++  ASSERT(buf[0] == 'b');
++  uv_fs_req_cleanup(&read_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 0);
++  uv_fs_req_cleanup(&read_req);
++
++  /* Write without offset should change the position */
++  iov = uv_buf_init("d", 1);
++  r = uv_fs_write(NULL, &write_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 0);
++  uv_fs_req_cleanup(&read_req);
++}
++
++static void fs_file_pos_close_check(const char *contents, int size) {
++  int r;
++
++  /* Close */
++  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
++  ASSERT(r == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  /* Confirm file contents */
++  r = uv_fs_open(NULL, &open_req1, "test_file", O_RDONLY, 0, NULL);
++  ASSERT(r >= 0);
++  ASSERT(open_req1.result >= 0);
++  uv_fs_req_cleanup(&open_req1);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == size);
++  ASSERT(strncmp(buf, contents, size) == 0);
++  uv_fs_req_cleanup(&read_req);
++
++  r = uv_fs_close(NULL, &close_req, open_req1.result, NULL);
++  ASSERT(r == 0);
++  uv_fs_req_cleanup(&close_req);
++
++  /* Cleanup */
++  unlink("test_file");
++}
++
++static void fs_file_pos_write(int add_flags) {
++  int r;
++
++  /* Setup. */
++  unlink("test_file");
++
++  r = uv_fs_open(NULL,
++                 &open_req1,
++                 "test_file",
++                 O_TRUNC | O_CREAT | O_RDWR | add_flags,
++                 S_IWUSR | S_IRUSR,
++                 NULL);
++  ASSERT(r > 0);
++  uv_fs_req_cleanup(&open_req1);
++
++  fs_file_pos_common();
++
++  /* Write with offset should not change the position */
++  iov = uv_buf_init("e", 1);
++  r = uv_fs_write(NULL, &write_req, open_req1.result, &iov, 1, 1, NULL);
++  ASSERT(r == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 0);
++  uv_fs_req_cleanup(&read_req);
++
++  fs_file_pos_close_check("aecd", 4);
++}
++TEST_IMPL(fs_file_pos_write) {
++  fs_file_pos_write(0);
++  fs_file_pos_write(UV_FS_O_FILEMAP);
++
++  MAKE_VALGRIND_HAPPY();
++  return 0;
++}
++
++static void fs_file_pos_append(int add_flags) {
++  int r;
++
++  /* Setup. */
++  unlink("test_file");
++
++  r = uv_fs_open(NULL,
++                 &open_req1,
++                 "test_file",
++                 O_APPEND | O_CREAT | O_RDWR | add_flags,
++                 S_IWUSR | S_IRUSR,
++                 NULL);
++  ASSERT(r > 0);
++  uv_fs_req_cleanup(&open_req1);
++
++  fs_file_pos_common();
++
++  /* Write with offset appends (ignoring offset)
++   * but does not change the position */
++  iov = uv_buf_init("e", 1);
++  r = uv_fs_write(NULL, &write_req, open_req1.result, &iov, 1, 1, NULL);
++  ASSERT(r == 1);
++  uv_fs_req_cleanup(&write_req);
++
++  iov = uv_buf_init(buf, sizeof(buf));
++  r = uv_fs_read(NULL, &read_req, open_req1.result, &iov, 1, -1, NULL);
++  ASSERT(r == 1);
++  ASSERT(buf[0] == 'e');
++  uv_fs_req_cleanup(&read_req);
++
++  fs_file_pos_close_check("abcde", 5);
++}
++TEST_IMPL(fs_file_pos_append) {
++  fs_file_pos_append(0);
++  fs_file_pos_append(UV_FS_O_FILEMAP);
++
++  MAKE_VALGRIND_HAPPY();
++  return 0;
++}
++#endif
++
+ TEST_IMPL(fs_null_req) {
+   /* Verify that all fs functions return UV_EINVAL when the request is NULL. */
+   int r;
+@@ -3873,4 +4063,16 @@
+ 
+     return 0;
+ }
++
++TEST_IMPL(fs_invalid_mkdir_name) {
++  uv_loop_t* loop;
++  uv_fs_t req;
++  int r;
++
++  loop = uv_default_loop();
++  r = uv_fs_mkdir(loop, &req, "invalid>", 0, NULL);
++  ASSERT(r == UV_EINVAL);
++
++  return 0;
++}
+ #endif
+diff -Naur libuv-v1.30.1.orig/test/test-list.h libuv/test/test-list.h
+--- libuv-v1.30.1.orig/test/test-list.h	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-list.h	2019-09-24 19:35:31.162233738 +0000
+@@ -321,6 +321,10 @@
+ #ifdef _WIN32
+ TEST_DECLARE   (fs_symlink_junction)
+ TEST_DECLARE   (fs_non_symlink_reparse_point)
++TEST_DECLARE   (fs_open_flags)
++#endif
++#if defined(_WIN32) && !defined(USING_UV_SHARED)
++TEST_DECLARE   (fs_fd_hash)
+ #endif
+ TEST_DECLARE   (fs_utime)
+ TEST_DECLARE   (fs_futime)
+@@ -370,10 +374,13 @@
+ TEST_DECLARE   (fs_null_req)
+ TEST_DECLARE   (fs_read_dir)
+ #ifdef _WIN32
++TEST_DECLARE   (fs_file_pos_write)
++TEST_DECLARE   (fs_file_pos_append)
+ TEST_DECLARE   (fs_exclusive_sharing_mode)
+ TEST_DECLARE   (fs_file_flag_no_buffering)
+ TEST_DECLARE   (fs_open_readonly_acl)
+ TEST_DECLARE   (fs_fchmod_archive_readonly)
++TEST_DECLARE   (fs_invalid_mkdir_name)
+ #endif
+ TEST_DECLARE   (strscpy)
+ TEST_DECLARE   (threadpool_queue_work_simple)
+@@ -912,6 +919,10 @@
+ #ifdef _WIN32
+   TEST_ENTRY  (fs_symlink_junction)
+   TEST_ENTRY  (fs_non_symlink_reparse_point)
++  TEST_ENTRY  (fs_open_flags)
++#endif
++#if defined(_WIN32) && !defined(USING_UV_SHARED)
++  TEST_ENTRY  (fs_fd_hash)
+ #endif
+   TEST_ENTRY  (fs_stat_missing_path)
+   TEST_ENTRY  (fs_read_bufs)
+@@ -957,10 +968,13 @@
+   TEST_ENTRY  (fs_null_req)
+   TEST_ENTRY  (fs_read_dir)
+ #ifdef _WIN32
++  TEST_ENTRY  (fs_file_pos_write)
++  TEST_ENTRY  (fs_file_pos_append)
+   TEST_ENTRY  (fs_exclusive_sharing_mode)
+   TEST_ENTRY  (fs_file_flag_no_buffering)
+   TEST_ENTRY  (fs_open_readonly_acl)
+   TEST_ENTRY  (fs_fchmod_archive_readonly)
++  TEST_ENTRY  (fs_invalid_mkdir_name)
+ #endif
+   TEST_ENTRY  (get_osfhandle_valid_handle)
+   TEST_ENTRY  (open_osfhandle_valid_handle)
+diff -Naur libuv-v1.30.1.orig/test/test-pipe-sendmsg.c libuv/test/test-pipe-sendmsg.c
+--- libuv-v1.30.1.orig/test/test-pipe-sendmsg.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-pipe-sendmsg.c	2019-09-24 19:39:45.093925738 +0000
+@@ -126,8 +126,10 @@
+   memset(&msg, 0, sizeof(msg));
+   msg.msg_iov = (struct iovec*) &buf;
+   msg.msg_iovlen = 1;
++#if !defined(__sgi)
+   msg.msg_flags = 0;
+-
++#endif
++  
+   msg.msg_control = (void*) scratch;
+   msg.msg_controllen = CMSG_LEN(sizeof(send_fds));
+   ASSERT(sizeof(scratch) >= msg.msg_controllen);
+diff -Naur libuv-v1.30.1.orig/test/test-poll.c libuv/test/test-poll.c
+--- libuv-v1.30.1.orig/test/test-poll.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-poll.c	2019-09-24 19:39:45.095936138 +0000
+@@ -605,7 +605,7 @@
+ #if !defined(__DragonFly__) && !defined(__FreeBSD__) && !defined(__sun) && \
+     !defined(_AIX) && !defined(__MVS__) && !defined(__FreeBSD_kernel__) && \
+     !defined(__OpenBSD__) && !defined(__CYGWIN__) && !defined(__MSYS__) && \
+-    !defined(__NetBSD__)
++    !defined(__NetBSD__) && !defined(__sgi)
+   uv_poll_t poll_handle;
+   int fd;
+ 
+diff -Naur libuv-v1.30.1.orig/test/test-process-priority.c libuv/test/test-process-priority.c
+--- libuv-v1.30.1.orig/test/test-process-priority.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-process-priority.c	2019-09-24 19:39:45.096746538 +0000
+@@ -42,9 +42,10 @@
+     r = uv_os_setpriority(0, i);
+ 
+     /* If UV_EACCES is returned, the current user doesn't have permission to
+-       set this specific priority. */
+-    if (r == UV_EACCES)
++       set this specific priority. On IRIX UV_EPERM is returned instead. */
++    if (r == UV_EACCES || r == UV_EPERM)
+       continue;
++    printf("%d\n", r);
+ 
+     ASSERT(r == 0);
+     ASSERT(uv_os_getpriority(0, &priority) == 0);
+diff -Naur libuv-v1.30.1.orig/test/test-tmpdir.c libuv/test/test-tmpdir.c
+--- libuv-v1.30.1.orig/test/test-tmpdir.c	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test-tmpdir.c	2019-09-24 19:35:31.216229738 +0000
+@@ -67,5 +67,16 @@
+   r = uv_os_tmpdir(tmpdir, &len);
+   ASSERT(r == UV_EINVAL);
+ 
++#ifdef _WIN32
++  const char *name = "TMP";
++  char tmpdir_win[] = "C:\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
++  r = uv_os_setenv(name, tmpdir_win);
++  ASSERT(r == 0);
++  char tmpdirx[PATHMAX];
++  size_t lenx = sizeof tmpdirx;
++  r = uv_os_tmpdir(tmpdirx, &lenx);
++  ASSERT(r == 0);
++#endif
++
+   return 0;
+ }
+diff -Naur libuv-v1.30.1.orig/test/test.gyp libuv/test/test.gyp
+--- libuv-v1.30.1.orig/test/test.gyp	2019-07-02 10:55:03.000000000 +0000
++++ libuv/test/test.gyp	2019-09-24 19:35:31.232176138 +0000
+@@ -35,6 +35,8 @@
+         'test-fs-readdir.c',
+         'test-fs-copyfile.c',
+         'test-fs-event.c',
++        'test-fs-fd-hash.c',
++        'test-fs-open-flags.c',
+         'test-fs-poll.c',
+         'test-getters-setters.c',
+         'test-get-currentexe.c',
