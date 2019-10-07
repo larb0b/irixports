@@ -27,10 +27,11 @@ LDFLAGS="-L$prefix/lib -Wl,-rpath,$prefix/lib $ldopts"
 PATH="$prefix/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11"
 LD_LIBRARYN32_PATH="/usr/lib32${ldlibpath:+:$ldlibpath}"
 if [ "$compiler" = "gcc" ]; then
-	CC=/opt/local/gcc-$gccversion/bin/gcc
-	CXX=/opt/local/gcc-$gccversion/bin/g++
-	LD_LIBRARYN32_PATH="/opt/local/gmp/lib:/opt/local/mpc/lib:/opt/local/mpfr/lib:/opt/local/gcc-$gccversion/lib32:$LD_LIBRARYN32_PATH"
-	PATH="/opt/local/gcc-$gccversion/bin:$PATH"
+       CC=/usr/didbs/current/gbs9_1/bin/gcc
+       CXX=/usr/didbs/current/gbs9_1/bin/g++
+       LD_LIBRARYN32_PATH="/usr/didbs/current/gbs9_1/lib32:/usr/didbs/current/lib32:$LD_LIBRARYN32_PATH"
+       PATH="/usr/didbs/current/gbs9_1/bin:$PATH"
+
 elif [ "$compiler" = "mipspro" ]; then
 	CC=/usr/bin/cc
 	CXX=/usr/bin/CC
