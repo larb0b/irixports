@@ -23,7 +23,7 @@ shift
 : "${ldopts:=}"
 CPPFLAGS="-I$prefix/include $cppopts"
 LDFLAGS="-L$prefix/lib -Wl,-rpath,$prefix/lib $ldopts"
-PATH="$prefix/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11"
+PATH="$prefix/bin:/usr/didbs/0_1_8_n32_mips3_gcc/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11"
 LD_LIBRARYN32_PATH="/usr/lib32${ldlibpath:+:$ldlibpath}"
 if [ "$compiler" = "gcc" ]; then
 	CC=/usr/didbs/0_1_8_n32_mips3_gcc/bin/gcc
