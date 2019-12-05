@@ -16,6 +16,8 @@ echo "Extracting didbs."
 # Needs to be run in case user is on 6.5.22
 echo "Running mkheaders."
 (cd /usr/didbs/0_1_8_n32_mips3_gcc/libexec/gcc/mips-sgi-irix6.5/9.2.0/install-tools && ./mkheaders)
+echo "Symlinking didbs make to gmake."
+ln -s /usr/didbs/0_1_8_n32_mips3_gcc/bin/make /usr/didbs/0_1_8_n32_mips3_gcc/bin/gmake
 echo "When working with irixports, you should make sure that LD_LIBRARYN32_PATH is set correctly. In a bourne-like shell, you can add something like this to your profile:"
 echo
 echo '    export LD_LIBRARYN32_PATH=/usr/didbs/0_1_8_n32_mips3_gcc/lib32:$LD_LIBRARYN32_PATH'
