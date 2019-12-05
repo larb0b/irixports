@@ -12,7 +12,6 @@ shift
 : "${makeopts:=-j$(sysconf NPROC_ONLN)}"
 : "${installopts:=}"
 : "${compiler:=gcc}"
-: "${gccversion:=8.2.0}"
 : "${ldlibpath:-}"
 : "${workdir:=$port-$version}"
 : "${configscript:=configure}"
@@ -27,10 +26,9 @@ LDFLAGS="-L$prefix/lib -Wl,-rpath,$prefix/lib $ldopts"
 PATH="$prefix/bin:/opt/local/bin:/usr/sbin:/usr/bsd:/sbin:/usr/bin:/etc:/usr/etc:/usr/bin/X11"
 LD_LIBRARYN32_PATH="/usr/lib32${ldlibpath:+:$ldlibpath}"
 if [ "$compiler" = "gcc" ]; then
-	CC=/opt/local/gcc-$gccversion/bin/gcc
-	CXX=/opt/local/gcc-$gccversion/bin/g++
-	LD_LIBRARYN32_PATH="/opt/local/gmp/lib:/opt/local/mpc/lib:/opt/local/mpfr/lib:/opt/local/gcc-$gccversion/lib32:$LD_LIBRARYN32_PATH"
-	PATH="/opt/local/gcc-$gccversion/bin:$PATH"
+	CC=/usr/didbs/0_1_8_n32_mips3_gcc/bin/gcc
+	CXX=/usr/didbs/0_1_8_n32_mips3_gcc/bin/g++
+	LD_LIBRARYN32_PATH="/usr/didbs/0_1_8_n32_mips3_gcc/lib32:$LD_LIBRARYN32_PATH"
 elif [ "$compiler" = "mipspro" ]; then
 	CC=/usr/bin/cc
 	CXX=/usr/bin/CC
