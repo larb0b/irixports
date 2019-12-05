@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 port=mrxvt
 version=0.5.4
 useconfigure=true

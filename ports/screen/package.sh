@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 port=screen
 version=4.0.3
 useconfigure=true

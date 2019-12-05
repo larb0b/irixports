@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 port=libtool
 version=2.4.6
 useconfigure=true

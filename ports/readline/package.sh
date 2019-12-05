@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 port=readline
 version=7.0
 useconfigure=true

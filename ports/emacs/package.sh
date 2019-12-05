@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 # TODO: Emacs 24 is the last major version that supports IRIX. Let's patch support back in at some point!
 port=emacs
 version=24.5.1

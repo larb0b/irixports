@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 # Note: Curl will expect cacert.pem in $prefix/etc.
 # TODO: Stop using --unresolved-symbols=ignore-all!
 port=curl

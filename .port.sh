@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh
 set -eu
 export prefix="$HOME/.local"
 [ -f ../config.sh ] && . ../config.sh

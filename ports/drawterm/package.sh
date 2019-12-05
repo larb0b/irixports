@@ -1,4 +1,4 @@
-#!/opt/local/bin/mksh ../../.port.sh
+#!/usr/didbs/0_1_8_n32_mips3_gcc/bin/sh ../../.port.sh
 # TODO: Figure out why authentication only works if the password is stored in the PASS environment variable and not entered into drawterm itself.
 port=drawterm
 version=20190619-6b68ed2b2324
