@@ -7,7 +7,7 @@ fi
 echo "Fetching didbs 0.1.8."
 mkdir -p /tmp/didbs
 perl .fetch.pl mirror.rqsall.com /misc/usr-didbs-0.1.8-n32m3gcc.tar.gz /tmp/didbs.tar.gz
-if [ "$(openssl sha1 /tmp/didbs/didbs.tar.gz | cut -d' ' -f2)" != "" ]; then
+if [ "$(openssl sha1 /tmp/didbs/didbs.tar.gz | cut -d' ' -f2)" != "cc4a281b3570dd1867523743a99309a311c81786" ]; then
 	>&2 echo "Error: didbs.tar.gz checksum incorrect. Try running this script again."
 	exit 1
 fi
