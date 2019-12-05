@@ -1,0 +1,30 @@
+--- xvi-2.50.3/Makefile	Wed Jun  7 04:02:54 2017
++++ xvi-2.50.3-p/Makefile	Thu Dec  5 12:56:15 2019
+@@ -6,7 +6,7 @@
+ #
+ #	Martin Guy, 8 April 2006
+ 
+-INSTALLROOT=/usr
++INSTALLROOT=${prefix}
+ 
+ BINDIR=$(DESTDIR)$(INSTALLROOT)/bin
+ HELPDIR=$(DESTDIR)$(INSTALLROOT)/share/xvi
+@@ -16,7 +16,7 @@
+ INSTALL?=install
+ MAKE?=make
+ 
+-OPTFLAG = -O2
++OPTFLAG = -O2 -I${prefix}/include
+ 
+ # Default target for "make"
+ all:
+@@ -31,7 +31,8 @@
+ 
+ install: all
+ 	$(INSTALL) -d $(BINDIR) $(HELPDIR) $(MANDIR) $(DOCDIR)
+-	$(INSTALL) -m 755 -s src/xvi $(BINDIR)
++	cp src/xvi $(BINDIR)
++	chmod 755 $(BINDIR)/xvi
+ 	$(INSTALL) -m 644 src/xvi.help $(HELPDIR)
+ 	$(INSTALL) -m 644 doc/xvi.1 $(MANDIR)
+ 
