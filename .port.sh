@@ -1,6 +1,6 @@
 #!/opt/local/bin/mksh
 set -eu
-prefix="$HOME/.local"
+export prefix="$HOME/.local"
 [ -f ../config.sh ] && . ../config.sh
 CFLAGS=
 CXXFLAGS=
