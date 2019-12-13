@@ -25,7 +25,7 @@ echo "Installing GCC 4.7.4."
 inst -A -f /tmp/gcc4
 echo "Fetching GNU toolchain (GCC 8.2.0, binutils 2.19.1, etc.)."
 mkdir -p /tmp/gnuchain
-/opt/local/bin/curl -o /tmp/gnuchain/gnuchain.tardist https://esp.iki.fi/gnutoolchain-0.1-01-irix-6.5-mips.tardist
+/opt/local/bin/curl -o /tmp/gnuchain/gnuchain.tardist http://esp.iki.fi/gnutoolchain-0.1-01-irix-6.5-mips.tardist
 if [ "$(openssl sha1 /tmp/gnuchain/gnuchain.tardist | cut -d' ' -f2)" != "2002f4f518d3e7eba5656b9a7550d05bcb6070ff" ]; then
 	>&2 echo "Error: gnuchain.tardist checksum incorrect. Try running this script again."
 	exit 1
